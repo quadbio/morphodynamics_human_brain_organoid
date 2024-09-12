@@ -1,0 +1,17 @@
+numpy
+matplotlib
+scikit-image
+pandas
+tqdm
+scipy
+pyyaml
+setuptools
+cellpose
+igraph
+scanpy
+anndata
+itk-elastix
+louvain
+PyWavelets
+tifffile
+smo
