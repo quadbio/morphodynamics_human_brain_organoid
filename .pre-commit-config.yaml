@@ -4,6 +4,11 @@ repos:
   hooks:
   - id: black
     exclude: ^4i_processing/
+- repo: https://github.com/PyCQA/autoflake
+  rev: v2.3.1
+  hooks:
+   - id: autoflake
+     exclude: ^4i_processing/
 - repo: https://github.com/pycqa/isort
   rev: 5.12.0
   hooks:
@@ -12,9 +17,8 @@ repos:
 - repo: https://github.com/nbQA-dev/nbQA
   rev: 1.9.0
   hooks:
+   - id: nbqa-black
+     exclude: ^4i_processing/
    - id: nbqa-isort
      exclude: ^4i_processing/
      args: [--profile=black]
-   - id: nbqa-flake8
-     exclude: ^4i_processing/
-     args: [--ignore=E402] # E402 module level import not at top of file

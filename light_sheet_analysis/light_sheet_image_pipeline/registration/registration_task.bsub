@@ -1,0 +1,29 @@
+#! /bin/bash
+jobname=$1
+arrIN=(${jobname//=/ })
+JOBNAME=${arrIN[1]}
+
+wait=$2
+arrwait=(${wait//=/ })
+wait_time=${arrwait[1]}
+ENV=itk_elastixs
+NAME=$(basename $0 .bsub)
+SCRIPT=$(dirname $0)/${NAME}.py
+SUBID=$(date +"%Y-%m-%d")
+LOGDIR=$(dirname $0)/logs/${NAME}/${SUBID}/
+BSUB_CMD=$(cat <<-EOF
+    #BSUB -W 110:00
+    #BSUB -n 64
+    #BSUB -w "${wait_time}"
+    #BSUB -J ${JOBNAME}
+    #BSUB -R rusage[mem=2000]
+    #BSUB -g /gutgi/${JOBNAME}
+    #BSUB -o ${LOGDIR}
+    #BSUB -G es_treutlein
+    source activate ${ENV}
+    python ${SCRIPT} $3 $4 $5
+    exit
+EOF
+)
+mkdir -p ${LOGDIR}
+echo "$BSUB_CMD"
