@@ -1,0 +1,27 @@
+#! /bin/bash
+jobname=$1
+arrIN=(${jobname//=/ })
+JOBNAME=${arrIN[1]}
+
+wait=$2
+arrwait=(${wait//=/ })
+wait_time=${arrwait[1]}
+ENV=aydin_env
+NAME=$(basename $0 .bsub)
+SCRIPT=$(dirname $0)/${NAME}.py
+SUBID=$(date +"%Y-%m-%d")
+LOGDIR=$(dirname $0)/logs/${NAME}/${SUBID}/
+BSUB_CMD=$(cat <<-EOF
+    #BSUB -W 36:00
+    #BSUB -w "${wait_time}"
+    #BSUB -J ${JOBNAME}
+    #BSUB -R rusage[mem=64000]
+    #BSUB -g /gutgi/${JOBNAME}
+    #BSUB -o ${LOGDIR}
+    source activate ${ENV}
+    python ${SCRIPT} "$3" "$4"
+    exit
+EOF
+)
+mkdir -p ${LOGDIR}
+echo "$BSUB_CMD"
