@@ -41,6 +41,11 @@ def segment_image(
     )
 
 
+"""
+The code below is a modified version to directly segment 3D numpy arrays instead of 3D tiff files from the brilliant segmentation algorithm, EmbedSeg: https://github.com/juglab/EmbedSeg/tree/main!
+"""
+
+
 def convert_zyx_to_czyx(im):
     im = im[np.newaxis, ...]  # CZYX
     return im
