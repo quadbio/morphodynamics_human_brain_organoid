@@ -1,0 +1,26 @@
+#! /bin/bash
+jobname=$1
+arrIN=(${jobname//=/ })
+JOBNAME=${arrIN[1]}
+
+ENV=aydin_env
+NAME=$(basename $0 .bsub)
+SCRIPT=$(dirname $0)/${NAME}.py
+SUBID=$(date +"%Y-%m-%d")
+LOGDIR=$(dirname $0)/logs/${NAME}/${SUBID}/
+BSUB_CMD=$(cat <<-EOF
+    #BSUB -W 52:00
+    #BSUB -J ${JOBNAME}
+    #BSUB -R rusage[mem=140000,ngpus_excl_p=1]
+    #BSUB -R select[gpu_mtotal0>=10040]
+    #BSUB -g /gutgi/${JOBNAME}
+    #BSUB -o ${LOGDIR}
+    #BSUB -G es_treutlein
+    source activate ${ENV}
+    module load gcc/8.2.0 cuda/11.2.2 cudnn/8.1.0.77 hdf5/1.10.1 eccodes/2.21.0 zlib/1.2.9
+    python ${SCRIPT} $@
+    exit
+EOF
+)
+mkdir -p ${LOGDIR}
+echo "$BSUB_CMD"

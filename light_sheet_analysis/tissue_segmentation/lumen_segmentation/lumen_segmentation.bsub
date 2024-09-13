@@ -1,0 +1,29 @@
+#! /bin/bash
+jobname=$1
+arrIN=(${jobname//=/ })
+JOBNAME=${arrIN[1]}
+n_files=250
+
+ENV=cucim_ml
+NAME=$(basename $0 .bsub)
+SCRIPT=$(dirname $0)/${NAME}.py
+SUBID=$(date +"%Y-%m-%d")
+LOGDIR=$(dirname $0)/logs/${NAME}/${SUBID}/
+BSUB_CMD=$(cat <<-EOF
+    #BSUB -W 04:00
+    #BSUB -n 1
+    #BSUB -J '${JOBNAME}_segment_lumen_organoid_multimosaic_[1-${n_files}]'
+    #BSUB -R rusage[mem=6000]
+    #BSUB -g /gutgi/${JOBNAME}
+    #BSUB -o ${LOGDIR}
+    source activate ${ENV}
+    python ${SCRIPT} $2 $3 --time_point=\$LSB_JOBINDEX
+    exit
+EOF
+)
+mkdir -p ${LOGDIR}
+echo "$BSUB_CMD"
+
+
+
+

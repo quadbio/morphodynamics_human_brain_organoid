@@ -1,0 +1,7 @@
+#Configuration file for the Pipeline
+#Denoising parameters
+denoising:
+    n_random_images: 90
+    test_train_split: 0.9
+    n_epochs: 128
+    denoise_clip: 7
