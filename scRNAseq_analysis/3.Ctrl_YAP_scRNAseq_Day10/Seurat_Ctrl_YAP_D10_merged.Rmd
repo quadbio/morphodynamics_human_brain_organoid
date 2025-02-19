@@ -1,0 +1,388 @@
+
+```{r}
+library (Seurat_Ctrl_YAP_D10_merged)
+library(dplyr)
+library(MetBrewer)
+library(presto)
+library(gplots)
+library(RColorBrewer)
+library(ggplot2)
+library(simspec)
+library(Seurat_Ctrl_YAP_D10_mergedWrappers)
+library(tidyr)
+library(patchwork)
+```
+
+```{r}
+setwd("~/polybox/Jain_Gut_et_al_2023/Ctrl_YAP_scRNAseq_Day10/")
+
+Seurat_Ctrl_YAP_D10_merged <- readRDS( "Seurat_Ctrl_YAP_D10_merged.rds")
+
+```
+
+ ####QC#####
+
+```{r}
+Idents(Seurat_Ctrl_YAP_D10_merged) <- "hash.ID"
+
+
+Seurat_Ctrl_YAP_D10_merged[["percent.mt"]] <- PercentageFeatureSet(Seurat_Ctrl_YAP_D10_merged, pattern = "^MT-")
+
+
+# Visualize QC metrics as a violin plot
+QCmetrics <- VlnPlot (Seurat_Ctrl_YAP_D10_merged, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size = 0)
+VlnPlot (Seurat_Ctrl_YAP_D10_merged, features = "percent.mt", y.max=30)
+VlnPlot (Seurat_Ctrl_YAP_D10_merged, features = "nCount_RNA", y.max=40000)
+VlnPlot (Seurat_Ctrl_YAP_D10_merged, features = "nFeature_RNA", y.max=8000)
+
+QCmetrics
+
+
+Seurat_Ctrl_YAP_D10_merged <- subset (Seurat_Ctrl_YAP_D10_merged, subset =  nFeature_RNA > 200   & percent.mt < 20)
+Seurat_Ctrl_YAP_D10_merged
+head (Seurat_Ctrl_YAP_D10_merged@meta.data, 5)
+
+Seurat_Ctrl_YAP_D10_merged <- NormalizeData (Seurat_Ctrl_YAP_D10_merged, normalization.method = "LogNormalize", scale.factor = 10000)
+
+Seurat_Ctrl_YAP_D10_merged <- FindVariableFeatures(Seurat_Ctrl_YAP_D10_merged, nfeatures = 3000) %>%
+ScaleData() %>%
+RunPCA(npcs = 50) 
+
+dev.off()
+
+```
+
+
+
+```{r}
+library(tibble)
+
+# See the assigned identity for each level of classification
+Seurat_Ctrl_YAP_D10_merged@meta.data %>% 
+    select (HTO_classification, hash.ID)
+
+# Check out the different levels of hash.ID to re-do the assignment of identities
+table (Seurat_Ctrl_YAP_D10_merged@meta.data$hash.ID)
+
+# Create a new tibble from the metadata of the integrated object that will contain a mutated column with the new "condition" annotations
+new.metadata <- as.tibble (Seurat_Ctrl_YAP_D10_merged@meta.data) %>% 
+  mutate (Condition = as.character (case_when (hash.ID == "Doublet" ~ "Doublet",
+                                               hash.ID == "HTO2" ~ "2",
+                                               hash.ID == "HTO12" ~ "5",
+                                               hash.ID == "HTO13" ~ "6")))
+                                               
+# Checking the right correspondence
+table (new.metadata$hash.ID, new.metadata$Condition)
+
+# Assign the "condition" column from the dataframe to the newly created "Condition" column in the integrated object - "Condition" appended as a character
+Seurat_Ctrl_YAP_D10_merged@meta.data$Condition <- new.metadata$Condition
+
+# Check that the addition of the column was done correctly
+Seurat_Ctrl_YAP_D10_merged@meta.data %>% 
+    select (HTO_classification.global, HTO_classification, hash.ID, Condition)
+
+# Reorganize "Condition" levels
+plot_order <- c ("Doublet", "2","5","6")
+Seurat_Ctrl_YAP_D10_merged@meta.data$Condition <- factor (x = Seurat_Ctrl_YAP_D10_merged@meta.data$Condition, levels = plot_order)
+
+# Check that we have the right order
+levels (Seurat_Ctrl_YAP_D10_merged$Condition)
+
+```
+
+```{r}
+
+# Create a new tibble from the metadata of the integrated object that will contain a mutated column with the new "condition" annotations
+new.metadata <- as.tibble (Seurat_Ctrl_YAP_D10_merged@meta.data) %>% 
+  mutate (Treatment = as.character (case_when(Condition == "Doublet" ~ "Doublet",
+                                              Condition == "2" ~ "Ctrl_DMSO_1000",
+                                              Condition == "5" ~ "Py_60_D5",
+                                              Condition == "6" ~ "Py_60_D7")))
+# Checking the right correspondence
+table (new.metadata$Condition, new.metadata$Treatment)
+
+# Assign the "Treatment" column from the dataframe to the newly created "Treatment" column in the integrated object - appended as a character
+Seurat_Ctrl_YAP_D10_merged@meta.data$Treatment <- new.metadata$Treatment
+
+# Check that the addition of the column was done correctly
+Seurat_Ctrl_YAP_D10_merged@meta.data %>% 
+    select (HTO_classification.global, HTO_classification, hash.ID, Condition, Treatment)
+
+# Reorganize "Treatment" levels
+plot_order <- c ("Doublet", "Ctrl_DMSO_1000", "Py_60_D5", "Py_60_D7")
+
+Seurat_Ctrl_YAP_D10_merged@meta.data$Treatment <- factor (x = Seurat_Ctrl_YAP_D10_merged@meta.data$Treatment, levels = plot_order)
+
+# Check that we have the right order
+levels (Seurat_Ctrl_YAP_D10_merged$Treatment)
+
+table (Seurat_Ctrl_YAP_D10_merged$Treatment, Seurat_Ctrl_YAP_D10_merged$Condition)
+
+```
+
+
+                               #########################################
+              
+```{r}
+
+counts <- GetAssayData(Seurat_Ctrl_YAP_D10_merged, assay = "RNA")
+counts <- counts[-(which(grepl("^MT-|^RPS|^HIST",rownames(counts)))),]
+Seurat_Ctrl_YAP_D10_merged <- subset(Seurat_Ctrl_YAP_D10_merged, features = rownames(counts))
+
+Seurat_Ctrl_YAP_D10_merged <- FindVariableFeatures(Seurat_Ctrl_YAP_D10_merged, nfeatures = 3000) %>%
+                   ScaleData() %>%
+                   RunPCA(npcs = 20)
+
+Seurat_Ctrl_YAP_D10_merged <- FindNeighbors(Seurat_Ctrl_YAP_D10_merged, reduction = "pca", dims = 1:20) %>% FindClusters(resolution = 1)
+
+
+Seurat_Ctrl_YAP_D10_merged<-RunUMAP(Seurat_Ctrl_YAP_D10_merged, reduction = "pca", dims = 1:20)
+
+plot1 <- UMAPPlot(Seurat_Ctrl_YAP_D10_merged, cols = met.brewer("Johnson", n = 15), pt.size = 1) &NoAxes()
+plot1
+
+
+plot2 <- UMAPPlot(Seurat_Ctrl_YAP_D10_merged, group.by = "Treatment", cols =met.brewer("Cross", n = 3) ,  pt.size = 1.2, order= T) & NoAxes()
+plot2
+
+
+plot3 <- plot1+plot2
+plot3
+
+ggsave("UMAP_Seurat_Ctrl_YAP_D10_merged.jpeg", plot3, width=10,height=4)
+
+
+
+```
+
+###################################### Integration CSS #########################################
+
+```{r}
+
+Seurat_Ctrl_YAP_D10_merged<- FindVariableFeatures(Seurat_Ctrl_YAP_D10_merged, nfeatures = 3000) %>%
+                   ScaleData() %>%
+                   RunPCA(npcs = 50)
+
+Seurat_Ctrl_YAP_D10_merged <- cluster_sim_spectrum(Seurat_Ctrl_YAP_D10_merged, label_tag = "orig.ident", cluster_resolution = 0.6)
+
+Seurat_Ctrl_YAP_D10_merged <- RunUMAP(Seurat_Ctrl_YAP_D10_merged, reduction="css", dims = 1:ncol(Embeddings(Seurat_Ctrl_YAP_D10_merged, "css")), min.dist =0.5, spread = 0.3)%>%
+  FindNeighbors(Seurat_Ctrl_YAP_D10_merged, reduction = "css", dims = 1:ncol(Embeddings(Seurat_Ctrl_YAP_D10_merged, "css"))) %>%
+  FindClusters(resolution =0.6)
+
+
+pal_conditions <- c("grey10","grey45","grey85")
+
+plot1 <- UMAPPlot(Seurat_Ctrl_YAP_D10_merged,group.by = "Treatment", pt.size = 1, cols =pal_conditions) &NoAxes()
+plot1
+
+ggsave("UMAP_Seurat_Ctrl_YAP_D10_merged.jpeg", plot1, width=10,height=5)
+
+plot2 <- UMAPPlot(Seurat_Ctrl_YAP_D10_merged, label = T)
+plot2
+
+plot3 <- plot1+plot2
+plot3
+
+ggsave("UMAP_Seurat_Ctrl_YAP_D10_merged.jpeg", plot3, width=15,height=5)
+
+
+FeaturePlot <-  FeaturePlot(Seurat_Ctrl_YAP_D10_merged, features = c("WLS","FOXH1","SIX3","GBX2"),  pt.size = 1, cols = c("grey95",colorRampPalette(c("grey90","midnightblue"))(30)), order=T, ncol =2)& NoAxes() 
+
+ggsave("FeaturePlot_Seurat_Ctrl_YAP_D10_merged.pdf", FeaturePlot,width=12,height=6)
+
+```
+
+
+
+
+                           
+
+   
+    #################################### Dotplot ##############################################
+
+```{r}
+Idents(Seurat_Ctrl_YAP_D10_merged) <- "seurat_clusters"
+
+##### DOTPlot ####
+dotplot <- function(exprmat,
+                    genes,
+                    cl,
+                    gene.reorder=TRUE,
+                    specified.order=NULL,
+                    cl.reorder.by.hc=TRUE,
+                    max.diag=TRUE,
+                    emphasize_genes = NULL,
+                    emphasize_cl = NULL,
+                    colors=c("#d9d9d9", "#252525"),
+                    point.size.factor=5,
+                    plot.margin=NULL,
+                    plot.cex=1.2,
+                    col.space.factor=1,
+                    row.space.factor=1,
+                    verbose = F)
+
+
+
+genes_2 <- c( "POU5F1","SOX2","TCF7L2","STMN2","WLS","OTX2","SIX3","LHX5","HESX1","WNT4","EN2","GBX2","LMX1B","TFAP2A","TWIST1","SOX10","MSX2","PRPH","POU4F1")
+
+
+dotplot_1 <- dotplot(Seurat_Ctrl_YAP_D10_merged@assays$RNA@data[genes_2,], genes_2, Seurat_Ctrl_YAP_D10_merged$Seurat_Ctrl_YAP_D10_merged_clusters)
+
+dotplot_1 <- DotPlot(object = Seurat_Ctrl_YAP_D10_merged, features = genes_2, cluster.idents = T, dot.scale = 8,dot.min = 0,scale.by = "radius") + theme_classic()+ theme(axis.text.x = element_text(angle = 90))+
+  #scale_color_viridis_c()+
+scale_colour_gradient2(low="grey1", mid="grey100", high="midnightblue")+
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.2)
+
+dotplot_1
+
+#ggsave("Dotplot_Seurat_Ctrl_YAP_D10_merged_Seurat_Ctrl_YAP_D10_merged_annotated_1.pdf", dotplot_1, width=9 ,height=3)
+ggsave("Dotplot_Seurat_Ctrl_YAP_D10_merged_anno_1.pdf", dotplot_1, width=19 ,height=10, unit = "cm")
+
+
+dev.off()
+```
+  
+################## Cluster Markers #################
+
+```{r}
+Idents(Seurat_Ctrl_YAP_D10_merged) <- "anno_class2"
+
+
+cl_markers <- FindAllMarkers(Seurat_Ctrl_YAP_D10_merged, only.pos = TRUE, min.pct = 0.25, logfc.threshold = log(1.2))
+top10_cl_markers <- cl_markers %>% group_by(cluster) %>% top_n(n = 10, wt = avg_log2FC)
+
+######### average cluster expression ########
+
+top_5 <- cl_markers %>% 
+  group_by(cluster) %>% 
+  top_n(n =10, wt = avg_log2FC)
+
+genes <- c(top_5)
+genes <- genes[["gene"]]
+genes
+
+
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(11,"RdBu"))(50)
+mapal2 <- met.brewer("Austria", n = 8)
+
+
+avg_expre_seu <- AverageExpression(Seurat_Ctrl_YAP_D10_merged, features = genes_2, return.Seurat_Ctrl_YAP_D10_merged = T)
+heatmap <- DoHeatmap(object = avg_expre_seu, features = genes_2, draw.lines = F, size =4, group.colors = color_anno)+ scale_fill_gradientn(colours = c("grey99","grey90","grey10"))
+heatmap
+
+ggsave("Heatmap_Seurat_Ctrl_YAP_D10_merged_genes_1.pdf", heatmap, width=4,height=6)
+```
+
+                                  
+                                  
+                                  
+                                  #### New cluster ids reduced ####
+```{r}
+
+Idents(Seurat_Ctrl_YAP_D10_merged) <- "seurat_clusters"
+
+# stash current cluster IDs
+Seurat_Ctrl_YAP_D10_merged[["cluster.ids"]] <- Idents(object = Seurat_Ctrl_YAP_D10_merged)
+
+# enumerate current cluster IDs and the labels for them
+cluster.ids <- c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+
+anno_class2 <- c("N.ecto", #  0
+            "Rhombencephalon",#  1
+            "Rhombencephalon", #F   2
+            "N.ecto", #  V 3
+            "Rhombencephalon",#W  4
+            "N.ecto", #  5
+            "Late N.ecto", #  6
+            "Rhombencephalon",#P 7
+            "PNS/NCC",#   8
+            "Diencephalon",#  9
+            "Late N.ecto", # 10
+            "iPSCs")#     # 11
+
+Seurat_Ctrl_YAP_D10_merged@meta.data[,'anno_class2'] <- plyr::mapvalues(x = Seurat_Ctrl_YAP_D10_merged@meta.data$cluster.ids, from = cluster.ids, to = anno_class2)
+
+Seurat_Ctrl_YAP_D10_merged$anno_class2 <- factor(Seurat_Ctrl_YAP_D10_merged$anno_class2, levels = c("iPSCs","N.ecto","Late N.ecto","Diencephalon","Rhombencephalon","PNS/NCC"))
+
+
+color_anno = c("#FFAF22","#E9C46A","#CA9731","#264653","#930707","#C15105")
+
+
+
+
+classdimplot <- DimPlot(Seurat_Ctrl_YAP_D10_merged, reduction = "umap", pt.size = 1, label = F,order = F, group.by = 'anno_class2', cols = color_anno) & NoAxes()
+classdimplot
+
+ggsave(filename = "annotated_HB4_Seurat_Ctrl_YAP_D10_merged_Seurat_Ctrl_YAP_D10_merged_2.png", plot = classdimplot,  width =6, height = 4)
+
+
+```
+
+
+#####   stacked plot
+```{r}
+
+Idents(Seurat_Ctrl_YAP_D10_merged) <- "seurat_clusters"
+
+
+library(dittoSeq)
+
+barplot_conditions<-dittoBarPlot(
+  object = Seurat_Ctrl_YAP_D10_merged,
+  var = "anno_class2",
+  group.by = "Treatment",
+  color.panel = color_anno,
+  retain.factor.levels = T,
+  ylab = "Cluster proportion")
+barplot_conditions
+
+ggsave(filename = "barplot_Seurat_Ctrl_YAP_D10_merged.png", plot = barplot_conditions,width =3, height = 3)
+
+```
+
+
+
+
+```{r}
+#############################       Volcano plot DE       ##############################
+
+library(EnhancedVolcano)
+
+
+Idents(Seurat_Ctrl_YAP_D10_merged) <- "Condition"
+
+cl_markers_Ctrl.Py60 <- FindMarkers(Seurat_Ctrl_YAP_D10_merged, ident.1 =c("2"), ident.2 = c("5","6"), only.pos = F)
+
+
+volcano_1 <- EnhancedVolcano(cl_markers_Ctrl.Py60,
+                             lab = rownames(cl_markers_Ctrl.Py60), 
+                             #selectLab = rownames(cl_markers_Ctrl.Py60),
+                           selectLab = c("WLS","FOXG1","SIX3","WNT4","WNT2B","FGF17","PAX3","PAX7","OTX2","EN2","IRX3","IRX2","CYP26A1","TFAP2A","HOXB2","GBX2","HAPLN1","PRTG","FOXH1","HESX1","SOX21","SFRP2","SOX10","FOXD3","POU5F1","SOX2","GPC3","COL4A1","NRG1","LHX2","HAPLN3","FAT1","IGFBP2","FGF8","FEZF1","FEZF2","DLK1","FZD5","ZIC2","PRTG","BMP4","BMP7","HYAL2","POU4F1","RSPO3","WNT5A", "LMX1B","SHH","EN1","WNT5A","MSX2"),
+                             x = 'avg_log2FC',
+                             y = 'p_val',
+                             title = 'Ctrl Vs Py-60 (D5, D7)',
+                             pCutoff = 10e-3,
+                             pCutoffCol = "p_val_adj",
+                             FCcutoff = 0.5,
+                             xlim = c(-3, 3),
+                             pointSize = 2,
+                             col=c("darkgreen","maroon3","grey","black"),
+                             drawConnectors = T)+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))+ theme(text = element_text(size = 20))    
+
+volcano_1
+
+ggsave( "volcano_cl_markers_CtrlVsPy60D5D7.pdf",volcano_1,width=30, height=20, units="cm", dpi = 300 )
+
+write.csv(cl_markers_Ctrl.Py60, "DE_genes_CtrlVs_YAP1.csv")
+
+```
+
+
+
+```{r}
+saveRDS(Seurat_Ctrl_YAP_D10_merged, "Seurat_Ctrl_YAP_D10_merged.rds")
+
+```
+
+                                                       
