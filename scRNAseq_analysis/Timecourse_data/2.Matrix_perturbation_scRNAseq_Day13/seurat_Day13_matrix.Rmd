@@ -1,0 +1,390 @@
+
+
+```{r}
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(usethis)
+library(devtools)
+library(harmony)
+library(patchwork)
+library(ggplot2)
+library(gridExtra)
+library(jcolors)
+library(MetBrewer)
+```
+
+
+```{r}
+setwd("/Users/jainak/polybox/Jain_Gut_et_al_2023/2.Matrix_perturbation_scRNAseq_Day13")
+seurat_Day13_matrix <- readRDS("seurat_Day13_matrix.rds")
+```
+
+                                    ####QC#####
+
+```{r}
+
+seurat_Day13_matrix[["percent.mt"]] <- PercentageFeatureSet(seurat_Day13_matrix, pattern = "^MT-")
+
+
+# Visualize QC metrics as a violin plot
+QCmetrics <- VlnPlot (seurat_Day13_matrix, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size = 0)
+QCmetrics
+
+VlnPlot (seurat_Day13_matrix, features = "percent.mt", y.max=11)
+VlnPlot (seurat_Day13_matrix, features = "nCount_RNA", y.max=40000)
+VlnPlot (seurat_Day13_matrix, features = "nFeature_RNA", y.max=8000)
+
+
+seurat_Day13_matrix <- subset (seurat_Day13_matrix, subset =  nFeature_RNA > 500 &  nFeature_RNA < 8000  & percent.mt < 10)
+seurat
+head (seurat_Day13_matrix@meta.data, 5)
+
+seurat_Day13_matrix <- NormalizeData (seurat_Day13_matrix, normalization.method = "LogNormalize", scale.factor = 10000)
+
+seurat_Day13_matrix <- FindVariableFeatures(seurat_Day13_matrix, nfeatures = 3000) %>%
+ScaleData() %>%
+RunPCA(npcs = 50) 
+
+dev.off()
+```
+
+
+
+```{r}
+# REMOVE RIBOSOMAL AND MITOCHONDRIAL GENES
+
+
+
+Filter_Mito_Ribo <- function(Seurat_obj){
+  "N.B. after running this fun $nCount_RNA and $nFeature_RNA will be wrong"
+  mito.ribo.genes <- c(grep(pattern = "^MT-", x = rownames(x = Seurat_obj@assays$RNA@meta.features), value = T, ignore.case = T), 
+                     grep(pattern = "^RPL", x = rownames(x = Seurat_obj@assays$RNA@meta.features), value = T, ignore.case = T),
+                     grep(pattern = "^RPS", x = rownames(x =
+Seurat_obj@assays$RNA@meta.features), value = T, ignore.case = T),
+                     grep(pattern = "^HIST", x = rownames(x =                        Seurat_obj@assays$RNA@meta.features), value = T, ignore.case = T))
+  genes.to.use <- rownames(Seurat_obj@assays$RNA@meta.features)[!(rownames(Seurat_obj@assays$RNA@meta.features) %in% mito.ribo.genes)]
+  Seurat_obj@assays$RNA@counts <- Seurat_obj@assays$RNA@counts[genes.to.use,]
+  Seurat_obj@assays$RNA@data <- Seurat_obj@assays$RNA@data[genes.to.use,]
+  Seurat_obj@assays$RNA@meta.features <- Seurat_obj@assays$RNA@meta.features[genes.to.use,]
+  return(Seurat_obj)
+}
+
+seurat_MT_Rib_His <- Filter_Mito_Ribo(seurat_Day13_matrix)
+
+```
+                                 
+                                    #### MERGE #####
+
+```{r}
+
+
+seurat_MT_Rib_His_Merge <- FindNeighbors(seurat_MT_Rib_His, dims = 1:10)
+seurat_MT_Rib_His_Merge <- FindClusters(seurat_MT_Rib_His_Merge, resolution = 0.8)
+seurat_MT_Rib_His_Merge <- RunUMAP(seurat_MT_Rib_His_Merge,  dims = 1:15)
+
+
+plot1 <- DimPlot(seurat_MT_Rib_His_Merge,reduction = "umap", group.by="dataset", pt.size = 0.3,cols = met.brewer("Demuth", n = 3), order = F)& NoAxes()
+plot1
+
+Idents(seurat_MT_Rib_His_Merge) -> "Seurat_clusters"
+
+plot2 <- UMAPPlot(seurat_MT_Rib_His_Merge, label = T)
+
+plot <- plot1+plot2
+
+
+            ################### Plotting UMAP with cell cycle stage annotation
+
+s.genes <- cc.genes$s.genes
+g2m.genes <- cc.genes$g2m.genes
+seurat_MT_Rib_His_Merge <- CellCycleScoring (seurat_MT_Rib_His_Merge, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+# view cell cycle scores and phase assignments
+head(seurat_MT_Rib_His_Merge[[]])
+# Change idents to cell cycle stage ("Phase") to have cell cycle annotation
+Idents (seurat_MT_Rib_His_Merge) <- "Phase"
+
+# Plot UMAP to file
+DimPlot (seurat_MT_Rib_His_Merge, reduction = "umap", label = TRUE, pt.size = 1, label.size = 0) 
+
+dev.off ()
+```
+
+                                   ####### CSS #####
+                                   
+```{r}
+
+library(simspec)
+
+seurat_CSS<- FindVariableFeatures(seurat_MT_Rib_His, nfeatures = 3000) %>%
+                   ScaleData() %>%
+                   RunPCA(npcs = 50)
+
+seurat_CSS <- cluster_sim_spectrum(seurat_CSS, label_tag = "orig.ident", cluster_resolution = 0.3)
+
+seurat_CSS <- RunUMAP(seurat_CSS, reduction="css", dims = 1:ncol(Embeddings(seurat_CSS, "css")))%>%
+  FindNeighbors(seurat_CSS, reduction = "css", dims = 1:ncol(Embeddings(seurat_CSS, "css"))) %>%
+  FindClusters(resolution =1)
+
+
+plot1 <- UMAPPlot(seurat_CSS,group.by = "dataset", pt.size = 0.5, cols = met.brewer("Demuth",3))
+plot1
+
+plot2 <- UMAPPlot(seurat_CSS, label = T)
+plot2
+
+plot3 <- plot1+plot2
+
+
+ggsave("UMAP_CSS_MT_Rib_His_HB4_d13.jpeg", plot3, width=15,height=5)
+
+```
+       ################### Plotting UMAP with cell cycle stage annotation
+
+```{r}
+
+
+s.genes <- cc.genes$s.genes
+g2m.genes <- cc.genes$g2m.genes
+seurat_CSS_CCR <- CellCycleScoring (seurat_CSS, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+
+# Change idents to cell cycle stage ("Phase") to have cell cycle annotation
+Idents (seurat_CSS_CCR) <- "Phase"
+
+# Plot UMAP to file
+png ("UMAP_seurat_CSS_phase.png",width=20,height=15,units="cm",res=500)
+DimPlot (seurat_CSS_CCR, reduction = "umap", label = TRUE, pt.size = 1, label.size = 0) 
+dev.off ()
+```
+
+          #################################### Dotplot ##############################################
+
+```{r}
+Idents(seurat_CSS) <- "seurat_clusters"
+##### DOTPlot ####
+dotplot <- function(exprmat,
+                    genes,
+                    cl,
+                    gene.reorder=TRUE,
+                    specified.order=NULL,
+                    cl.reorder.by.hc=TRUE,
+                    max.diag=TRUE,
+                    emphasize_genes = NULL,
+                    emphasize_cl = NULL,
+                    colors=c("#d9d9d9", "#252525"),
+                    point.size.factor=5,
+                    plot.margin=NULL,
+                    plot.cex=1.2,
+                    col.space.factor=1,
+                    row.space.factor=1,
+                    verbose = F)
+
+
+genes_2 <- c("POU5F1","KRT8","KRT18","PODXL","MKI67","SOX2","PAX6","NES","VIM","MAP2","TUBB3","STMN2","DCX","CDH2","CDH1","EPCAM","LDHA","TCF7L2","FOXD3","SOX10","OTX2","EMX1","EMX2","HESX1","FOXH1","LGR4","LMO1","LEF1","SOX21","FOXG1","SIX3","PRTG","WLS","SFRP2","SFRP1","FEZF1","FEZF2", "PAX3","PAX7","LHX5","LHX9","RSPO3","IRX3","GBX2","EN2","PAX2","IRX2","TFAP2A","TFAP2B","SST", "APOE","FTL","GRIA2","FOXO3","FGF8","RAX","FAT1","FAT4","PRPH","CYP26A1")
+
+
+dotplot_1 <- dotplot(seurat_CSS@assays$RNA@data[genes_2,], genes_2, seurat_CSS$seurat_clusters)
+
+dotplot_1 <- DotPlot(object = seurat_CSS, features = genes_2, cluster.idents = T, dot.scale = 4,dot.min = 0,scale.by = "radius", col.min = 0) + theme_classic()+ theme(axis.text.x = element_text(angle = 90))+scale_colour_gradient2(low="grey1", mid="grey100", high="midnightblue")+
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.2)
+dotplot_1
+
+
+ggsave("Dotplot_seurat_CSS_1.jpeg", dotplot_1, width=8 ,height=3)
+
+
+```
+
+
+
+                              #### New cluster ids reduced ####
+```{r}
+
+Idents(seurat_CSS) <- "seurat_clusters"
+
+# stash current cluster IDs
+seurat_CSS[["cluster.ids"]] <- Idents(object = seurat_CSS)
+
+# enumerate current cluster IDs and the labels for them
+cluster.ids <- c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,12,13,14,15,16,17,18,19)
+
+anno_class1 <- c("Telencephalic progenitors", #  0
+            "Diencephalic progenitors",#WLS  1
+            "Neural progenitors", #F   2
+            "Neural progenitors", #  VIM  3
+            "Neural progenitors",#WLS   4
+            "Diencephalic progenitors", # VIM    5
+            "Telencephalic progenitors", #SOX2 PAX6 FOXG1 LHX2 SIX3    6
+            "Telencephalic progenitors",#POU5F1 TCF7L2    7
+            "Diencephalic progenitors",#POU5F1 FOXD3 FOXO1   8
+            "Telencephalic progenitors",#POU5F1 TCF7L2   9
+            "Telencephalic progenitors", #DLX2 STMN2 DCX   10
+            "Neural crest", #SOX2 PAX6 FOXG1 LHX2 SIX3    11
+            "Neural crest", # VIM         12
+            "Diencephalic progenitors", # MKI67   13
+            "Neural crest",        #   14
+            "PNS neurons", #    15
+            "Pluripotent cells",   # POU5F1   16
+            "Neural crest", #SOX10   17
+            "Neural progenitors",  # 18
+            "Mes-rhombencephalon neurons")#   RELN    19
+
+seurat_CSS@meta.data[,'anno_class1'] <- plyr::mapvalues(x = seurat_CSS@meta.data$cluster.ids, from = cluster.ids, to = anno_class1)
+
+seurat_CSS$anno_class1 <- factor(seurat_CSS$anno_class1, levels = c("Telencephalic progenitors","Diencephalic progenitors","Neural progenitors","Pluripotent cells","Neural crest","PNS neurons","Mes-rhombencephalon neurons"))
+
+
+color_anno = c("#049983","#264653","#cc9933","#ee6a50","#f4a261","#a3b18a","#930707")
+
+
+classdimplot <- DimPlot(seurat_CSS, reduction = "umap", pt.size = 0.5, label = F,order = F, group.by = 'anno_class1', cols = color_anno) & NoAxes()
+classdimplot
+
+ggsave(filename = "annotated_HB4_seurat_CSS_1.png", plot = classdimplot, device = "png", width =9, height = 5)
+
+```
+
+#####   stacked plot
+```{r}
+library(dittoSeq)
+
+Idents(seurat_CSS) -> "seurat_clusters"
+
+seurat_CSS$dataset <- factor(seurat_CSS$dataset, levels = c("HB4 Mat Day 13", "HB4 NoMat Day 13", "HB4 Agar Day 13"))
+
+barplot_conditions<-dittoBarPlot(
+  object = seurat_CSS,
+  var = "anno_class1",
+  group.by = "dataset",
+  color.panel = color_anno,
+  retain.factor.levels = T,
+  ylab = "Cluster proportion")
+barplot_conditions
+
+ggsave(filename = "barplot_HB4_seurat_CSS_1.png", plot = barplot_conditions, device = "png", width =10, height = 7)
+
+```
+                    
+                    
+                     ######################### HEATMAP #####################
+
+
+```{r}
+
+Idents(seurat_CSS) <- "anno_class1"
+
+
+genes2 <- c("POU5F1","SOX2","PAX6","TCF7L2","FOXD3","SOX10","NES","VIM","CDH2","LDHA","OTX2","EMX2","HESX1","PRTG","SIX3","FOXG1","RAX","LHX2","WLS","SFRP2","FEZF1","FEZF2", "RSPO3","LHX5-AS1","RELN","EOMES","IRX3","IRX2","HOXB2","PAX2","EN2","NR2F1","NR2F2","TFAP2A","TFAP2B","SFRP2","ZIC1","TAL2")
+
+
+heatmap <- DoHeatmap(object = seurat_CSS, features = genes2, draw.lines = T, size =3,disp.min = 0, group.bar =T, group.colors = color_anno, lines.width	= 10)
+
+plot <- heatmap + scale_fill_gradientn(colours = c("Grey94","Grey15"))
+
+plot
+
+ggsave("Heatmap_select_genes_seurat_CSS_D13_1.png", plot, width=60,height=20,scale = 1, units = c("cm"),dpi = 300)
+
+```
+
+
+
+
+
+```{r}
+#Create a volcano plot for visualisation (or a heatmap would also work)
+library(EnhancedVolcano)
+library(dittoSeq)
+
+Idents(seurat_CSS) <- "dataset"
+
+cl_markers_mat.nomat <- FindMarkers(seurat_CSS, ident.1 =c("HB4 Mat Day 13"), ident.2 = c("HB4 NoMat Day 13"), only.pos = F)
+
+volcano_1 <- EnhancedVolcano(cl_markers_mat.nomat,
+                             lab = rownames(cl_markers_mat.nomat),
+                             #selectLab = rownames(cl_markers_mat.nomat),
+                             selectLab = c("WLS","FOXG1","EMX2","SIX3","SIX6","WNT4","WNT2B","FGF17","PAX3","PAX7","OTX2","EN2","IRX3","IRX2","CYP26A1","TFAP2A","HOXB2","GBX2","HAPLN1","PRTG","FOXH1","HESX1","SOX21","SFRP2","SOX10","FOXD3","POU5F1","SOX2","GPC3","COL4A1","NRG1","LHX2","HAPLN3","FAT1","IGFBP2","FGF8","FEZF1","FEZF2","DLK1","FZD5","ZIC2","PRTG","BMP4","BMP7","HYAL2","POU4F1"),
+                             x = 'avg_log2FC',
+                             y = 'p_val',
+                             title = 'Mat vs NoMat D13',
+                             pCutoff = 10e-3,
+                             pCutoffCol = "p_val_adj",
+                             FCcutoff = 0.5,
+                             xlim = c(-2.5, 2.5),
+                             pointSize = 3,
+                             col=c("maroon3","purple4","grey60","black"),
+                             drawConnectors = T)+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))+ theme(text = element_text(size = 8))    
+
+volcano_1
+
+ggsave( "volcano_MatvsNoMat_1.png",volcano_1,width=25, height=20, units="cm", dpi = 300 )
+ggsave( "volcano_MatvsNoMat_1.pdf",volcano_1,width=25, height=20, units="cm", dpi = 300 )
+
+
+write.csv(cl_markers_mat.nomat, "DE_genes_matVsnomat.csv")
+
+```
+
+                ##### create files for DAVID GO analysis ########
+
+```{r}
+
+
+det_rates <- rowMeans(seurat_CSS[['RNA']]@data > 0)
+
+detected_genes <- rownames(seurat_CSS)[which(det_rates > 0.01)]
+
+res_DE <- FindMarkers(seurat_CSS, features = detected_genes, group.by = "dataset", ident.1 = "HB4 Mat Day 13", ident.2 = "HB4 NoMat Day 13")
+
+DE_up_in_matrigel <- res_DE[res_DE$avg_log2FC > log(1.2),]
+DE_down_in_matrigel <- res_DE[res_DE$avg_log2FC < -log(1.2),]
+
+
+write.table(DE_up_in_matrigel, file="DE_up.tsv", quote=F, sep="\t", row.names=F, col.names=F)
+write.table(DE_down_in_matrigel, file="DE_down.tsv", quote=F, sep="\t", row.names=F, col.names=F)
+
+write.csv(DE_up_in_matrigel, file="DE_up.csv")
+write.csv(DE_down_in_matrigel, file="DE_down.csv")
+
+
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("biomaRt")
+
+library(biomaRt)
+
+ensembl <- useEnsembl(biomart = "ensembl",
+                      dataset = "hsapiens_gene_ensembl",
+                      version = 93)
+meta_genes <- getBM(attributes = c("ensembl_gene_id",
+                                   "ensembl_gene_id_version",
+                                   "hgnc_symbol",
+                                   "description",
+                                   "chromosome_name",
+                                   "start_position",
+                                   "end_position",
+                                   "strand"),
+                    filters = "hgnc_symbol",
+                    values = rownames(seurat_CSS),
+                    mart = ensembl) %>%
+  right_join(data.frame(hgnc_symbol= rownames(seurat_CSS)),
+             by = "hgnc_symbol") %>%
+  distinct(hgnc_symbol, .keep_all = TRUE)
+
+write.table(meta_genes$ensembl_gene_id[meta_genes$hgnc_symbol %in% detected_genes], file="background.tsv", quote=F, sep="\t", row.names=F, col.names=F)
+
+result_data <- read.csv("up_DAVID_t2t_5957FDDF677B1674660059570.txt", header = TRUE, sep = "\t", col.names = NULL, )
+```       
+        
+```{r}
+
+saveRDS(seurat_CSS, "seurat_CSS.rds")
+
+seurat_CSS <- readRDS( "seurat_CSS.rds")
+
+```
+          
+                    
+
