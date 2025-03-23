@@ -81,8 +81,8 @@ def main(argv):
     # Set alignemnt ref cycles
     config["alignment"]["reference_cycles"] = None
     config["alignment"]["param_maps"] = {
-        "rigid": "/cluster/home/gutgi/gitlab/morphodynamics-of-human-brain-organoid-patterning/4i_analysis/4i_pipeline/param_maps/translation.txt",
-        "affine": "/cluster/home/gutgi/gitlab/morphodynamics-of-human-brain-organoid-patterning/4i_analysis/4i_pipeline/param_maps/affine.txt",
+        "rigid": "/param_maps/translation.txt",
+        "affine": "/param_maps/affine.txt",
     }
     config["alignment"]["mask_bright_spots"] = True
 
@@ -99,7 +99,7 @@ def main(argv):
     config["cellpose"]["segment_dual_channel"] = True
     config["cellpose"][
         "pretrained_model"
-    ] = "/cluster/project/treutlein/DATA/imaging/4i_Data/Brain_ECM_4i/Brain_ECM_4i_bcat/cellpose_model/CP_20240707_cyto_lr_0_1_weight_decay_0_0001_epochs_300_bcat"
+    ] = "/Brain_ECM_4i_bcat/cellpose_model/CP_20240707_cyto_lr_0_1_weight_decay_0_0001_epochs_300_bcat"
     config["cellpose"]["segment_channel"] = int(FLAGS.segment_channel)
     config["cellpose"]["segment_cycle"] = int(FLAGS.segment_cycle)
     config["cellpose"]["diameter"] = 44.01

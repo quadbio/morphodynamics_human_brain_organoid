@@ -81,8 +81,8 @@ def main(argv):
     config["alignment"]["reference_cycles"] = None
     # Set parameter maps
     config["alignment"]["param_maps"] = {
-        "rigid": "/cluster/project/treutlein/USERS/gutgi/github/4i_framework/example_data/param_maps/translation.txt",
-        "affine": "/cluster/project/treutlein/USERS/gutgi/github/4i_framework/example_data/param_maps/affine.txt",
+        "rigid": "/param_maps/translation.txt",
+        "affine": "/param_maps/affine.txt",
     }
     # Cycle DAPI
     config["simple_masking"]["sigma"] = 50
