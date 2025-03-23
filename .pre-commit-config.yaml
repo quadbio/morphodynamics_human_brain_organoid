@@ -3,23 +3,23 @@ repos:
   rev: 22.10.0
   hooks:
   - id: black
-    exclude: ^4i_processing/
+    exclude: ^4i_analysis/4i_processing/
 - repo: https://github.com/PyCQA/autoflake
   rev: v2.3.1
   hooks:
    - id: autoflake
-     exclude: ^4i_processing/
+     exclude: ^4i_analysis/4i_processing/
 - repo: https://github.com/pycqa/isort
   rev: 5.12.0
   hooks:
    - id: isort
-     exclude: ^4i_processing/
+     exclude: ^4i_analysis/4i_processing/
      args: ["--profile", "black"]
 - repo: https://github.com/nbQA-dev/nbQA
   rev: 1.9.0
   hooks:
    - id: nbqa-black
-     exclude: ^4i_processing/
+     exclude: ^4i_analysis/4i_processing/
    - id: nbqa-isort
-     exclude: ^4i_processing/
+     exclude: ^4i_analysis/4i_processing/
      args: [--profile=black]
