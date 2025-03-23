@@ -48,9 +48,6 @@ def extract_filtered(
     updated_movie = updated_movie == 3
     return scipy.ndimage.median_filter(updated_movie, size=(t_kernel_length, 1, 1, 1))
 
-    # for t in time_points_label:
-    #    input_movie[t]['labels'][label_name_smooth][zarr_level][z_split,:,:]=filtered[t]
-
 
 def write_updated_labels(
     time_point,

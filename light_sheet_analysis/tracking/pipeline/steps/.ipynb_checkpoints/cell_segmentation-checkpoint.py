@@ -29,9 +29,9 @@ def main(argv):
 
     tta = True
     ap_val = 0.5
-    save_dir = "/cluster/project/treutlein/DATA/imaging/viventis/test_Embedseg/"
-    data_dir = "/cluster/project/treutlein/DATA/imaging/viventis/test_Embedseg/"
-    base_dir = "/cluster/home/gutgi/git_repositories/morphodynamics-of-human-brain-organoid-patterning/light_sheet_analysis/light_sheet_image_pipeline/cell_segmentation"
+    save_dir = "/test_Embedseg/"
+    data_dir = "/test_Embedseg/"
+    base_dir = "/cell_segmentation"
     project_name = "3D_Brain_organoids_with_meta"
     run_name = "all_06_02_2023"
     checkpoint_path = os.path.join(
