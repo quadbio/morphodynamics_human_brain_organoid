@@ -3,38 +3,21 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# Set figure parameters
-sns.set_context("paper", rc={"font.size": 8,
-                             "axes.titlesize": 8,
-                             "axes.labelsize": 8})
-rc = {'figure.figsize': (10, 8),
-      'axes.facecolor': 'white',
-      'axes.grid': False,
-      'grid.color': '.8',
-      'font.family': 'Arial',
-      'font.size': 5}
-plt.rcParams.update(rc)
-CM = 1/2.54  # centimeters in inches
-fig, ax = plt.subplots(figsize=(8*CM, 6*CM))
-sns.despine(left=True, bottom=True, right=True)
-
 # Create custom colour palette
 palette_custom = {'Agarose_06': '#374484',
                   'Agarose_03': '#69BCDE'}
 
 
-# File path to 0.3 percent agarose data
-FILE_PATH_AGAR_03 = ('/Users/rtschannen/Desktop/agar_data/'
-                     'segmentation_results_agarose.csv')
+# File path to 0.3 percent agarose data (csv)
+FILE_PATH_AGAR_03 = ''
 
-# Get dir from preprint figure 0.6 percent agarose data
-FILE_PATH_AGAR_06_LUMEN_VOLUME = ('/Users/rtschannen/Desktop/agar_data/'
-                                  'lumen_volumes_agar_2.csv')
-FILE_PATH_AGAR_06_NUMBER_OF_LUMEN = ('/Users/rtschannen/Desktop/agar_data/'
-                                     'n_lumen_agar_2.csv')
-FILE_PATH_AGAR_06_ORGANOID_VOLUME = ('/Users/rtschannen/Desktop/agar_data/'
-                                     'organoid_volumes_agar_2.csv')
+# Get dir from preprint figure 0.6 percent agarose data (csv)
+FILE_PATH_AGAR_06_LUMEN_VOLUME = ''
+FILE_PATH_AGAR_06_NUMBER_OF_LUMEN = ''
+FILE_PATH_AGAR_06_ORGANOID_VOLUME = ''
 
+# Set output folder for plots
+OUTPUT_FLD = ''
 
 # Read files agarose 0.3 percent
 # Assign labels to distinguish the different dataframes
@@ -119,7 +102,7 @@ df_concat_ds['ratio_lumen_o_organoid'] = (
     df_concat_ds['lumen_volume']/df_concat_ds['organoid_volume']
     )
 
-# Calculate lumen volume/(lumen+epithelium volume)
+# Calculate percent lumen volume: lumen volume/(lumen+epithelium volume)
 df_concat_ds['percent_lumen_vol'] = (
     df_concat_ds['lumen_volume'] /
     (df_concat_ds['lumen_volume']+df_concat_ds['organoid_volume'])
@@ -139,17 +122,17 @@ sns.lineplot(df_agarose_up_to_d7, x='time_in_days',
              y='percent_lumen_vol', hue='type', errorbar='sd',
              palette=palette_custom.values())
 plt.xlabel('time[days]')
-plt.ylabel('% Lumen volume')
+plt.ylabel('lumen volume / (lumen + organoid volume)')
 plt.title('Percent lumen volume')
-plt.savefig('/Users/rtschannen/Desktop/agar_per_lumen_vol_ds.pdf')
-plt.show()
+plt.savefig(OUTPUT_FLD+'agar_per_lumen_vol_ds.pdf')
+plt.close()
 
 # Plot number of lumen over organoid volume
 sns.lineplot(df_agarose_up_to_d7, x='time_in_days',
              y='lumen_per_org_volume', hue='type',
              errorbar='sd', palette=palette_custom.values())
 plt.xlabel('time[days]')
-plt.ylabel('Number of segmented lumen over organoid volume')
+plt.ylabel('Number of segmented lumen / organoid volume')
 plt.title('Number of segmented lumen over organoid volume')
-plt.savefig('/Users/rtschannen/Desktop/agar_lumen_over_organoid_ds.pdf')
-plt.show()
+plt.savefig(OUTPUT_FLD+'agar_lumen_over_organoid_ds.pdf')
+plt.close()
