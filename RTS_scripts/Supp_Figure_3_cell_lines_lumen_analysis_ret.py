@@ -31,51 +31,39 @@ pallette = {"Matrigel": "#17ad97", "No Matrix": "#4d4d4d",
 
 # Create an empty data frame
 # Read in masks and loop over them
+# Image acquisition done by AJ, some dont have the correct label
+# E.g. some files named laminin are tubulin. Images were checked
+# For correct cell labels
+
+# Define input folder path for images
+INPUT_FLD = ''
+
+# Input folder path for lumen masks
+MASK_FLD = ''
+
+# Define output folder path
+OUTPUT_FLD = ''
 
 # Tubulin (Images: 5, 7, 8)
 
-T1 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/Results/'
-      '2024_lumen_analysis/2024_input_data_movie_masks/'
-      'tubulin_all_m05to07/p5_t/')
-T2 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/Results/'
-      '2024_lumen_analysis/2024_input_data_movie_masks/'
-      'tubulin_all_m05to07/p7_t/')
-T3 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/Results/'
-      '2024_lumen_analysis/2024_input_data_movie_masks/'
-      'laminin_all_m08to10/p8_l/')
+T1 = INPUT_FLD+'tubulin_all_m05to07/p5_t/'
+T2 = INPUT_FLD+'tubulin_all_m05to07/p7_t/'
+T3 = INPUT_FLD+'laminin_all_m08to10/p8_l/'
 
 # Lamin (Images: 6, 9, 12)
-L1 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/Results/'
-      '2024_lumen_analysis/2024_input_data_movie_masks/'
-      'tubulin_all_m05to07/p6_t/')
-L2 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/Results/'
-      '2024_lumen_analysis/2024_input_data_movie_masks/'
-      'laminin_all_m08to10/p9_l/')
-L3 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/Results/'
-      '2024_lumen_analysis/2024_input_data_movie_masks/'
-      'actin_all_m11to13/p12_ac/')
+L1 = INPUT_FLD+'tubulin_all_m05to07/p6_t/'
+L2 = INPUT_FLD+'laminin_all_m08to10/p9_l/'
+L3 = INPUT_FLD+'actin_all_m11to13/p12_ac/'
 
 # Actin (Images: 10, 11, 13)
-A1 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/'
-      'Results/2024_lumen_analysis/2024_input_data_movie_masks/'
-      'laminin_all_m08to10/p10_l/')
-A2 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/Results/'
-      '2024_lumen_analysis/2024_input_data_movie_masks/'
-      'actin_all_m11to13/p11_ac/')
-A3 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/Results/'
-      '2024_lumen_analysis/2024_input_data_movie_masks/'
-      'actin_all_m11to13/p13_ac/')
+A1 = INPUT_FLD+'laminin_all_m08to10/p10_l/'
+A2 = INPUT_FLD+'actin_all_m11to13/p11_ac/'
+A3 = INPUT_FLD+'actin_all_m11to13/p13_ac/'
 
 # Histone (Images: 14, 15, 16)
-H1 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/Results/'
-      '2024_lumen_analysis/2024_input_data_movie_masks/'
-      'histone_all_m14to16/p14_h/')
-H2 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/'
-      'Results/2024_lumen_analysis/2024_input_data_movie_masks/'
-      'histone_all_m14to16/p15_h/')
-H3 = ('/Users/rtschannen/Documents/Projects_2024/ECM_project/'
-      'Results/2024_lumen_analysis/2024_input_data_movie_masks/'
-      'histone_all_m14to16/p16_h/')
+H1 = INPUT_FLD+'histone_all_m14to16/p14_h/'
+H2 = INPUT_FLD+'histone_all_m14to16/p15_h/'
+H3 = INPUT_FLD+'histone_all_m14to16/p16_h/'
 
 # Add input dir variables to list, and also create list with all replicate
 # names, and condition names
@@ -86,27 +74,19 @@ cond_list = ['Tubulin', 'Tubulin', 'Tubulin', 'Lamin', 'Lamin', 'Lamin',
              'Actin', 'Actin', 'Actin', 'Histone', 'Histone', 'Histone']
 
 # Image mask collage date read in
-image_path_list = ['/Users/rtschannen/Desktop/decompressed/t0121_561_P5.tif',
-                   '/Users/rtschannen/Desktop/decompressed/t0121_561_P6.tif',
-                   '/Users/rtschannen/Desktop/decompressed/t0121_488_P10.tif',
-                   '/Users/rtschannen/Desktop/decompressed/t0121_488_P15.tif'
+image_path_list = [MASK_FLD+'/t0121_561_P5.tif',
+                   MASK_FLD+'/t0121_561_P6.tif',
+                   MASK_FLD+'/t0121_488_P10.tif',
+                   MASK_FLD+'/t0121_488_P15.tif'
                    ]
 
-mask_path_list = [('/Users/rtschannen/Documents/Projects_2024/ECM_project/'
-                   'Results/2024_lumen_analysis/2024_input_data_movie_masks/'
-                   'tubulin_all_m05to07/p5_t/'
+mask_path_list = [(INPUT_FLD+'tubulin_all_m05to07/p5_t/'
                    '0121_lumen_organoid_mask_processed.tif'),
-                  ('/Users/rtschannen/Documents/Projects_2024/ECM_project/'
-                   'Results/2024_lumen_analysis/2024_input_data_movie_masks/'
-                   'tubulin_all_m05to07/p6_t/'
+                  (INPUT_FLD+'tubulin_all_m05to07/p6_t/'
                    '0121_lumen_organoid_mask_processed.tif'),
-                  ('/Users/rtschannen/Documents/Projects_2024/ECM_project/'
-                   'Results/2024_lumen_analysis/2024_input_data_movie_masks/'
-                   'laminin_all_m08to10/p10_l/'
+                  (INPUT_FLD+'laminin_all_m08to10/p10_l/'
                    '0121_lumen_organoid_mask_processed.tif'),
-                  ('/Users/rtschannen/Documents/Projects_2024/ECM_project/'
-                   'Results/2024_lumen_analysis/2024_input_data_movie_masks/'
-                   'histone_all_m14to16/p15_h/'
+                  (INPUT_FLD+'histone_all_m14to16/p15_h/'
                    '0121_lumen_organoid_mask_processed.tif')
                   ]
 
@@ -219,7 +199,7 @@ results_fdr_axis = multipletests(results['pval_anova'].iloc[6:],
 
 results['padj_anova'] = np.hstack((results_fdr_area[1], results_fdr_axis[1]))
 
-results.to_csv('/Users/rtschannen/Desktop/anova_stats_table.csv')
+results.to_csv(OUTPUT_FLD+'anova_stats_table.csv')
 
 # Wilcoxon rank sum test day 9
 # Assumptions:
@@ -247,7 +227,7 @@ for measurement in measurements:
 
     results_wilcoxon_measurement['padj_wilcoxon_rank_sum'] = multipletests(results_wilcoxon_measurement['pval_wilcoxon_rank_sum'], method='bonferroni')[1]
 
-    result_wilcoxon_df = pd.concat([result_wilcoxon_df, 
+    result_wilcoxon_df = pd.concat([result_wilcoxon_df,
                                     results_wilcoxon_measurement])
 
 result_wilcoxon_df.to_csv('/Users/rtschannen/Desktop/wilcoxon_stats_table.csv')
@@ -293,14 +273,14 @@ for measurement in measurements:
 
 result_wilcoxon_df.to_csv('/Users/rtschannen/Desktop/wilcoxon_stats_table.csv')
 
-# Violin plot 1 
+# Violin plot 1
 sns.violinplot(lumen_analysis, x="timepoint", y="area_converted",
                hue="condition", log_scale=True, cut=0)
 
 plt.title('Lumen analysis: Violinplot linevolume over time', fontsize=10)
 plt.legend(loc='lower right')
 plt.ylabel(r'Volume $[\mu m^3]$')
-plt.savefig('/Users/rtschannen/Desktop/linevolumeot.pdf')
+plt.savefig(OUTPUT_FLD+'linevolumeot.pdf')
 plt.close()
 
 # Violin plot 2
@@ -311,7 +291,7 @@ plt.title('Lumen analysis: Violinplot fit ellipse major axis length over time',
           fontsize=10)
 plt.legend(loc='center right')
 plt.ylabel(r'Axis major length $[\mu m]$')
-plt.savefig('/Users/rtschannen/Desktop/axismajorot.pdf')
+plt.savefig(OUTPUT_FLD+'axismajorot.pdf')
 plt.close()
 
 # Violin plot 3 conditions volume (area)
@@ -322,7 +302,7 @@ plt.title('Lumen analysis: Violinplot linevolume Day 9 for all conditions',
 plt.legend(loc='upper right')
 plt.ylabel(r'Volume $[\mu m^3]$')
 plt.xticks([])
-plt.savefig('/Users/rtschannen/Desktop/day9conditionsvolumeviolinplot.pdf')
+plt.savefig(OUTPUT_FLD+'day9conditionsvolumeviolinplot.pdf')
 plt.close()
 
 
@@ -334,7 +314,7 @@ plt.title('Lumen analysis: Violinplot axis major length Day 9 for all conditions
 plt.legend(loc='upper right', bbox_to_anchor=(1.25, 1.0))
 plt.ylabel(r'Axis major length $[\mu m]$')
 plt.xticks([])
-plt.savefig('/Users/rtschannen/Desktop/day9conditionsaxismajorlenviolinplot.pdf')
+plt.savefig(OUTPUT_FLD+'day9conditionsaxismajorlenviolinplot.pdf')
 plt.close()
 
 # Imaging mask creation
@@ -358,15 +338,15 @@ for image_path, mask_path, channel in zip(image_path_list, mask_path_list,
     mask_number = mask[mask.shape[0]//4]
 
     img_number = exposure.rescale_intensity(
-                                            img_number,
-                                            in_range=(0, np.percentile(img_number, 99)),
-                                            out_range=(0, 1)
-                                            )
+        img_number,
+        in_range=(0, np.percentile(img_number, 99)),
+        out_range=(0, 1)
+        )
 
     assert image.shape[0] == mask.shape[0]
 
-    upscaled_mask = skimage.transform.rescale(mask_number, 
-                                              [4, 4], order=0, 
+    upscaled_mask = skimage.transform.rescale(mask_number,
+                                              [4, 4], order=0,
                                               preserve_range=True)
 
     stack_sep_channel = []
@@ -393,6 +373,6 @@ ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 ax.spines['bottom'].set_visible(False)
 ax.spines['left'].set_visible(False)
-plt.savefig('/Users/rtschannen/Desktop/montage_cell_lines_fully_labelled.png',
+plt.savefig(OUTPUT_FLD+'montage_cell_lines_fully_labelled.png',
             pad_inches=0, bbox_inches='tight', dpi=dpi)
 plt.close()
