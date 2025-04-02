@@ -4,15 +4,12 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 # Get file path for each conditions
-PEG_RDG_MINUS_CTRL = ('/Users/rtschannen/Desktop/PEG_data/'
-                      'RDG_minus_segmentation_results.csv')
-PEG_RDG_PLUS_LAMININ = ('/Users/rtschannen/Desktop/PEG_data/'
-                        'RDG_plus_laminin_segmentation_results.csv')
-PEG_GFO_MINUS = ('/Users/rtschannen/Desktop/PEG_data/'
-                 'GFO_minus_segmentation_results.csv')
+PEG_RDG_MINUS_CTRL = ''
+PEG_RDG_PLUS_LAMININ = ''
+PEG_GFO_MINUS = ''
 
 # Define output folder for plots
-OUTPUT_FLD = '/Users/rtschannen/Desktop/'
+OUTPUT_FLD = ''
 
 custom_palette = {"RDG_minus_ctrl": "#353440",
                   "RDG_plus_laminin": "#0554F2",
