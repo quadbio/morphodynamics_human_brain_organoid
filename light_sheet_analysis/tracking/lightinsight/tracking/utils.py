@@ -8,14 +8,12 @@ def solution2graph(solver, base_graph, label_key="show"):
     Args:
         solver: A solver instance
         base_graph: The base graph
-        detections: The detections
         label_key: The key of the label in the detections
     Returns:
         track_graph: Solution as motile.TrackGraph
         graph: Solution as networkx graph
-        selected_detections: Dense label array containing only selected detections
 
-    This functions has been taken from https://github.com/dlmbl/tracking
+    This functions has been adapted from https://github.com/dlmbl/tracking
     """
     graph = nx.DiGraph()
     node_indicators = solver.get_variables(motile.variables.NodeSelected)
@@ -25,7 +23,6 @@ def solution2graph(solver, base_graph, label_key="show"):
         if solver.solution[index] > 0.5:
             node_features = base_graph.nodes[node]
             graph.add_node(node, **node_features)
-            node_features[base_graph.frame_attribute]
 
     # Build edges
     for edge, index in edge_indicators.items():
@@ -44,4 +41,4 @@ def solution2graph(solver, base_graph, label_key="show"):
 
     track_graph = motile.TrackGraph(graph, frame_attribute="time")
 
-    return track_graph, graph  # selected_detections
+    return track_graph, graph
