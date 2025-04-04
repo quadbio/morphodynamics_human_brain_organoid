@@ -1,0 +1,228 @@
+
+```{r}
+library(Seurat)
+library(SeuratWrappers)
+library(dplyr)
+library(ggplot2)
+library(usethis)
+library(devtools)
+library(harmony)
+library(patchwork)
+library(ggplot2)
+library(gridExtra)
+library(jcolors)
+library(MetBrewer)
+```
+
+
+
+
+```{r}
+
+setwd("~/polybox/Jain_Gut_et_al_2023/Timecourse")
+
+Timecourse <- readRDS("Timecourse.rds")
+
+table(Timecourse$dataset)
+
+```
+
+```{r}
+Idents(Timecourse) <- "dataset"
+
+# Visualize QC metrics as a violin plot
+QCmetrics <- VlnPlot (Timecourse, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size = 0)
+QCmetrics
+
+VlnPlot (Timecourse, features = "percent.mt", y.max=11)
+VlnPlot (Timecourse, features = "nCount_RNA", y.max=40000)
+VlnPlot (Timecourse, features = "nFeature_RNA", y.max=7000)
+
+```
+
+Plot UMAP with cluster annotation
+
+```{r}
+# Change idents to cluster annotation
+Idents (Timecourse) <- "seurat_clusters"
+
+png ("UMAP_cluster_Timecourse.png",width=35,height=25,units="cm",res=500)
+DimPlot (Timecourse, reduction = "umap", label = TRUE, pt.size = 2, label.size = 5, cols = met.brewer("Austria", n = 16)) & NoAxes()
+
+dev.off()
+
+```
+
+ 
+
+```{r}
+##### DOTPlot ####
+dotplot <- function(exprmat,
+                    genes,
+                    cl,
+                    gene.reorder=TRUE,
+                    specified.order=NULL,
+                    cl.reorder.by.hc=TRUE,
+                    max.diag=TRUE,
+                    emphasize_genes = NULL,
+                    emphasize_cl = NULL,
+                    colors=c("#d9d9d9", "#252525"),
+                    point.size.factor=5,
+                    plot.margin=NULL,
+                    plot.cex=1.2,
+                    col.space.factor=1,
+                    row.space.factor=1,
+                    verbose = F)
+
+Idents(Timecourse) <- "seurat_clusters"
+
+
+
+genes_2 <- c( "POU5F1","KRT8","MKI67","SFRP2","SOX2","TCF7L2","PAX6","NES","VIM","HES4","HES5","STMN2","GLI3","CDH2","SOX21","OTX2","LHX2","FEZF1","FEZF2","SOX1","FOXG1","SIX3","RAX","SIX6","PAX2","ZIC5","FOXO1","FOXO3","CDKN1A","HESX1","ZIC1","PRTG","BMP7","FGF8","NRG1","NR2F1","NR2F2","PTX3","WLS","EMX1","EMX2","DLX2","NKX2-1","TAL2","RSPO3","LHX5","LHX9","WNT4","WNT2B","WNT8B","SST","PROM1","ITGA6","ITGB1","BTG2","OCLN","CYP26A1","SOX10","FOXD3")
+
+dotplot_1 <- dotplot(Timecourse@assays$RNA@data[genes_2,], genes_2, Timecourse$seurat_clusters)
+
+
+dotplot_1 <- DotPlot(object = Timecourse, features = genes_2, cluster.idents = T, dot.scale = 6,dot.min = 0,scale.by = "radius") + theme_classic()+ theme(axis.text.x = element_text(angle = 90))+scale_colour_gradient2(low="darkgreen", mid="grey90", high="purple4")+
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.2)
+
+dotplot_1
+
+ggsave("Dotplot_Timecourse.jpeg", dotplot_1, width=9,height=5)
+
+dev.off()
+```
+            
+            
+
+#### New cluster ids ####
+```{r}
+
+Idents(Timecourse) <- "seurat_clusters"
+
+# stash current cluster IDs
+Timecourse[["cluster.ids"]] <- Idents(object = Timecourse)
+
+# enumerate current cluster IDs and the labels for them
+cluster.ids <- c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,12,13,14)
+
+class3 <-  c("Diencephalic progenitors", #  0
+            "Neurectoderm",#  1
+            "Telencephalic progenitors", #  2
+            "Late Prosencephalic progenitors", #3
+            "Late Neurectoderm",#  4
+            "Neurectoderm", #  5
+            "Telencephalic progenitors", #  6
+            "Late Neurectoderm",# 7
+            "Neurectoderm",# 8
+            "Late Neurectoderm",# 9
+            "Tel/Die neurons",#   10
+            "Telencephalic progenitors",#  11
+            "Prosencephalic progenitors", # 12
+            "Telencephalic progenitors",#     13
+            "Unknown proliferating cells")#     14
+
+
+Timecourse@meta.data[,'class3'] <- plyr::mapvalues(x = Timecourse@meta.data$cluster.ids, from = cluster.ids, to = class3)
+
+Timecourse$class3 <- factor(Timecourse$class3, levels = c("Neurectoderm","Late Neurectoderm","Unknown proliferating cells","Prosencephalic progenitors","Telencephalic progenitors","Late Prosencephalic progenitors","Diencephalic progenitors","Tel/Die neurons"))
+
+
+color_anno = c("#ff6e1e","#e6c262","#c48e2c","#7fb59e","#049983","#016260","#264653","#930707","#14231d","#0c3447")
+
+classdimplot <- DimPlot(Timecourse, reduction = "umap", pt.size = 0.8, label = F,order = T, group.by = 'class3', cols = color_anno) & NoAxes()
+classdimplot
+
+ggsave(filename = "annotated_Timecourse_1.pdf", plot = classdimplot, device = "pdf", width =10, height = 7)
+
+ggsave(filename = "annotated_Timecourse_1.png", plot = classdimplot, device = "png", width =10, height = 7)
+
+```
+
+              
+
+                          #####   stacked plot
+```{r}
+
+Idents(Timecourse) -> "dataset"
+
+library(dittoSeq)
+
+plot_order <- c("HB4 D5" ,"HB4 D7","HB4 D11", "HB4 D16","HB4 D21","HB4 D30")
+Timecourse@meta.data$dataset <- factor (x = Timecourse@meta.data$dataset, levels = plot_order)
+
+
+barplot_conditions<-dittoBarPlot(
+  object = Timecourse,
+  var = "class3",
+  group.by = "dataset",
+  color.panel = color_anno,
+  retain.factor.levels = T,
+  ylab = "Cluster proportion")
+
+barplot_conditions
+
+ggsave(filename = "barplot_Timecourse_1.pdf", plot = barplot_conditions, device = "pdf", width =10, height = 7)
+
+
+```
+
+                                    #### Heatmap annotations ######
+
+```{r}
+
+Idents(Timecourse) <- "class3"
+
+genes2 <- c("POU5F1","MKI67","PAX6","SOX2","STMN2","SFRP2","OTX2","TCF7L2","VIM","NES","FOXG1","DLX2","EMX2","SIX3","LHX2","FEZF1","NRG1","BMP7","FGF8","RAX","SIX6","WNT4","RSPO3","WNT2B","TAL2","LHX5","LHX9")
+
+heatmap <- DoHeatmap(object = Timecourse, features = genes2, draw.lines = T, size =3,disp.min = 0, group.bar =T, group.colors = color_anno, lines.width	= 30, label =F)
+
+plot <- heatmap + scale_fill_gradientn(colors=c("grey99",colorRampPalette(c("grey90" ,"midnightblue"))(30)))
+
+
+plot
+
+ggsave("Heatmap_genes_class3_1.pdf", plot, width=6,height=4)
+ggsave("Heatmap_genes_class3_1.png", plot, width=6,height=4)
+
+```
+
+                                  ################ Heatmap averaged #####
+```{r}
+                      ###################### without dendogram ##############
+avg_expre_seu1 <- AverageExpression(Timecourse, features = genes2, return.seurat = T)
+heatmap <- DoHeatmap(object = avg_expre_seu1, features = genes2, draw.lines = F, size =3,disp.min = 0, group.bar =T, group.colors = color_anno, lines.width	= 30, label =F)
+plot <- heatmap + scale_fill_gradientn(colors=c("grey99",colorRampPalette(c("grey99","grey50" ,"black"))(30)))
+plot
+
+ggsave("Heatmap_Timecourse_anno.pdf", plot, width=6,height=10)
+
+```
+
+```{r}
+### Feature Plots ##########
+
+
+FeaturePlot_regions <-  FeaturePlot(Timecourse, c("TAL2","NRG1","OTX2","FOXG1","FEZF1","RSPO3","SIX6","SFRP2"), ncol=8, pt.size = 0.3, cols = c("lightgrey",colorRampPalette(c("lightgrey","midnightblue"))(30)), order=T)
+
+FeaturePlot_regions
+ggsave("Featureplot_Timecourse-1.png", FeaturePlot_regions,device = "png",  width=20,height=2)
+
+
+```
+
+
+
+```{r}
+
+setwd("~/Documents/10x/HB4_timecourse/Integration_all_days_final/Analysis_14-06-2023")
+
+saveRDS(Timecourse, "Timecourse.rds")
+
+Timecourse <- readRDS("Timecourse.rds")
+```
+
+
+
+
+

@@ -1,0 +1,322 @@
+
+```{r}
+library (Seurat)
+library(dplyr)
+library(MetBrewer)
+library(presto)
+library(gplots)
+library(RColorBrewer)
+library(ggplot2)
+library(simspec)
+library(SeuratWrappers)
+library(tidyr)
+library(patchwork)
+```
+
+ 
+
+
+```{r}
+
+setwd("~/polybox/Jain_Gut_et_al_2023/5.Control_YAP_Day16_scRNAseq/")
+
+Day16_Control_YAP1 <- readRDS( "Day16_Control_YAP1.rds")
+
+```
+
+
+```{r}
+library(tibble)
+
+# See the assigned identity for each level of classification
+Day16_Control_YAP1@meta.data %>% 
+    select (HTO_classification, hash.ID)
+
+# Check out the different levels of hash.ID to re-do the assignment of identities
+table (Day16_Control_YAP1@meta.data$hash.ID)
+
+# Create a new tibble from the metadata of the integrated object that will contain a mutated column with the new "condition" annotations
+new.metadata <- as.tibble (Day16_Control_YAP1@meta.data) %>% 
+  mutate (Condition = as.character (case_when (hash.ID == "Doublet" ~ "Doublet",
+                                               hash.ID == "HTO2" ~ "2",
+                                               hash.ID == "HTO4" ~ "1")))
+                                               
+# Checking the right correspondence
+table (new.metadata$hash.ID, new.metadata$Condition)
+
+# Assign the "condition" column from the dataframe to the newly created "Condition" column in the integrated object - "Condition" appended as a character
+Day16_Control_YAP1@meta.data$Condition <- new.metadata$Condition
+
+# Check that the addition of the column was done correctly
+Day16_Control_YAP1@meta.data %>% 
+    select (HTO_classification.global, HTO_classification, hash.ID, Condition)
+
+# Reorganize "Condition" levels
+plot_order <- c ("Doublet", "1","2")
+Day16_Control_YAP1@meta.data$Condition <- factor (x = Day16_Control_YAP1@meta.data$Condition, levels = plot_order)
+
+# Check that we have the right order
+levels (Day16_Control_YAP1$Condition)
+
+```
+
+```{r}
+
+# Create a new tibble from the metadata of the integrated object that will contain a mutated column with the new "condition" annotations
+new.metadata <- as.tibble (Day16_Control_YAP1@meta.data) %>% 
+  mutate (Treatment = as.character (case_when(Condition == "Doublet" ~ "Doublet",
+                                              Condition == "1" ~ "Mat_control",
+                                              Condition == "2" ~ "Py-60 Mat")))
+# Checking the right correspondence
+table (new.metadata$Condition, new.metadata$Treatment)
+
+# Assign the "Treatment" column from the dataframe to the newly created "Treatment" column in the integrated object - appended as a character
+Day16_Control_YAP1@meta.data$Treatment <- new.metadata$Treatment
+
+# Check that the addition of the column was done correctly
+Day16_Control_YAP1@meta.data %>% 
+    select (HTO_classification.global, HTO_classification, hash.ID, Condition, Treatment)
+
+# Reorganize "Treatment" levels
+plot_order <- c ("Doublet", "Mat_control","Py-60 Mat")
+
+Day16_Control_YAP1@meta.data$Treatment <- factor (x = Day16_Control_YAP1@meta.data$Treatment, levels = plot_order)
+
+# Check that we have the right order
+levels (Day16_Control_YAP1$Treatment)
+
+table (Day16_Control_YAP1$Treatment, Day16_Control_YAP1$Condition)
+
+```
+
+                                    
+              ###################### Control and Py-60 (YAP1 activator) ###################
+```{r}
+
+counts <- GetAssayData(Day16_Control_YAP1, assay = "RNA")
+counts <- counts[-(which(grepl("^MT-|^RPS|^HIST",rownames(counts)))),]
+Day16_Control_YAP1 <- subset(Day16_Control_YAP1, features = rownames(counts))
+
+Day16_Control_YAP1 <- FindVariableFeatures(Day16_Control_YAP1, nfeatures = 3000) %>%
+                   ScaleData() %>%
+                   RunPCA(npcs = 20)
+
+Day16_Control_YAP1 <- FindNeighbors(Day16_Control_YAP1, reduction = "pca", dims = 1:20) %>% FindClusters(resolution = 1)
+
+
+Day16_Control_YAP1<-RunUMAP(Day16_Control_YAP1, reduction = "pca", dims = 1:15)
+
+plot1 <- UMAPPlot(Day16_Control_YAP1, cols = met.brewer("Johnson", n = 11), pt.size = 1) &NoAxes()
+plot1
+
+
+
+plot2 <- UMAPPlot(Day16_Control_YAP1, group.by = "Treatment", cols =met.brewer("Java", n = 2) ,  pt.size = 1.2, order= T) & NoAxes()
+plot2
+
+
+plot3 <- plot1+plot2
+plot3
+
+
+plot4 <- UMAPPlot(Day16_Control_YAP1, pt.size = 1.2, order= T, group.by = "Phase") & NoAxes()
+plot4
+
+```
+
+
+             
+               ######################### Integration CSS ######################
+    
+```{r}
+
+library(simspec)
+
+seurat_Day16_Control_YAP1<- FindVariableFeatures(Day16_Control_YAP1, nfeatures = 3000) %>%
+                   ScaleData() %>%
+                   RunPCA(npcs = 50)
+
+seurat_Day16_Control_YAP1 <- cluster_sim_spectrum(seurat_Day16_Control_YAP1, label_tag = "orig.ident", cluster_resolution = 0.3)
+
+seurat_Day16_Control_YAP1 <- RunUMAP(seurat_Day16_Control_YAP1, reduction="css", dims = 1:ncol(Embeddings(seurat_Day16_Control_YAP1, "css")))%>%
+  FindNeighbors(seurat_Day16_Control_YAP1, reduction = "css", dims = 1:ncol(Embeddings(seurat_Day16_Control_YAP1, "css"))) %>%
+  FindClusters(resolution =1.2)
+
+
+plot1 <- UMAPPlot(seurat_Day16_Control_YAP1,group.by = "Treatment", pt.size = 1, cols = c("grey","grey20")) &NoAxes()
+plot1
+
+ggsave("UMAP_CSS_seurat_Day16_Control_YAP1.pdf", plot1, width=5,height=5)
+
+plot2 <- UMAPPlot(seurat_Day16_Control_YAP1, label = T)
+plot2
+
+plot3 <- plot1+plot2
+plot3
+
+ggsave("UMAP_CSS_seurat_Day16_Control_YAP1.jpeg", plot3, width=15,height=5)
+
+```
+
+
+    ###################################### Feature plots ##################################
+```{r}
+
+FeaturePlot_1 <-  FeaturePlot(seurat_Day16_Control_YAP1, c( "WLS","GBX2","STMN2","RSPO3","SOX10","PAX3","LHX9","IRX3","FOXD3","TFAP2B","NR2F1","LMO4","PAX7","SIX1","WNT4","FEZF2","WNT2B","FOXG1","SIX3","HESX1","FOXH1"),  pt.size = 0.2, cols = c("lightgrey",colorRampPalette(c("skyblue","turquoise4" ,"midnightblue"))(50)), order=T)& NoAxes() &NoLegend()
+
+ggsave("FeaturePlot_seurat_Day16_Control_YAP1_1.jpeg", FeaturePlot_1)
+
+```
+
+  
+
+                                  #### New cluster ids reduced ####
+```{r}
+
+Idents(seurat_Day16_Control_YAP1) <- "seurat_clusters"
+
+# stash current cluster IDs
+seurat_Day16_Control_YAP1[["cluster.ids"]] <- Idents(object = seurat_Day16_Control_YAP1)
+
+# enumerate current cluster IDs and the labels for them
+cluster.ids <- c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,12,13)
+
+anno_class1 <- c("Late N.ecto", #  0
+            "Diencephalon",#  1
+            "Mid-hindbrain/NCC", #F   2
+            "Mid-hindbrain/NCC", #  V 3
+            "Late N.ecto",#W  4
+            "Late N.ecto", #  5
+            "Diencephalon", #  6
+            "Late N.ecto",#P 7
+            "Diencephalon",#   8
+            "N.ecto",#  9
+            "Telencephalic progenitors", # 10
+            "Rhombencephalon",#     11
+            "EMT/NCC",#     12
+            "Unknown")#     13
+
+seurat_Day16_Control_YAP1@meta.data[,'anno_class1'] <- plyr::mapvalues(x = seurat_Day16_Control_YAP1@meta.data$cluster.ids, from = cluster.ids, to = anno_class1)
+
+seurat_Day16_Control_YAP1$anno_class1 <- factor(seurat_Day16_Control_YAP1$anno_class1, levels = c("N.ecto","Late N.ecto","Telencephalic progenitors","Diencephalon","Mid-hindbrain/NCC","Rhombencephalon","EMT/NCC","Unknown"))
+
+
+color_anno = c("#FFAF22","#E9C46A","turquoise4","#264653","#930707","#C15105","#a3b18a","grey40")
+
+
+classdimplot <- DimPlot(seurat_Day16_Control_YAP1, reduction = "umap", pt.size = 1.5, label = F,order = F, group.by = 'anno_class1', cols = color_anno) & NoAxes()
+classdimplot
+
+ggsave(filename = "annotated_HB4_seurat_Day16_Control_YAP1_2.png", plot = classdimplot, device = "png", width =9, height = 5)
+
+```
+
+
+#####   stacked plot
+```{r}
+
+Idents(seurat_Day16_Control_YAP1) -> "seurat_clusters"
+
+seurat_Day16_Control_YAP1$Treatment <- factor(seurat_Day16_Control_YAP1$Treatment, levels = c("Mat_control", "Py-60 Mat"))
+
+library(dittoSeq)
+
+barplot_conditions<-dittoBarPlot(
+  object = seurat_Day16_Control_YAP1,
+  var = "anno_class1",
+  group.by = "Treatment",
+  color.panel = color_anno,
+  retain.factor.levels = T,
+  ylab = "Cluster proportion")
+barplot_conditions
+
+ggsave(filename = "barplot_HB4_seurat_Day16_Control_YAP1_1.png", plot = barplot_conditions, device = "png", width =10, height = 7)
+```
+
+            #################################### Dotplot ##############################################
+
+
+```{r}
+Idents(seurat_Day16_Control_YAP1) <- "anno_class1"
+
+##### DOTPlot ####
+dotplot <- function(exprmat,
+                    genes,
+                    cl,
+                    gene.reorder=TRUE,
+                    specified.order=NULL,
+                    cl.reorder.by.hc=TRUE,
+                    max.diag=TRUE,
+                    emphasize_genes = NULL,
+                    emphasize_cl = NULL,
+                    colors=c("#d9d9d9", "#252525"),
+                    point.size.factor=5,
+                    plot.margin=NULL,
+                    plot.cex=1.2,
+                    col.space.factor=1,
+                    row.space.factor=1,
+                    verbose = F)
+
+
+
+genes_2 <- c("POU5F1","SOX2","NES","VIM","MAP2","STMN2","HESX1","FOXH1","EPCAM","ZIC2","TCF7L2","OTX2","SIX3","PRTG","WLS","SFRP2", "PAX3","PAX7","IRX3","TFAP2A","TFAP2B" ,"LMX1B","POU4F1","SOX10","GBX2","ZIC1","PRPH","SNAI1" )
+
+
+
+
+dotplot_1 <- dotplot(seurat_Day16_Control_YAP1@assays$RNA@data[genes_2,], genes_2, seurat_Day16_Control_YAP1$seurat_clusters)
+
+dotplot_1 <- DotPlot(object = seurat_Day16_Control_YAP1, features = genes_2, cluster.idents = T, dot.scale = 8,dot.min = 0,scale.by = "radius") + theme_classic()+ theme(axis.text.x = element_text(angle = 90))+
+scale_colour_gradient2(low="grey1", mid="grey100", high="midnightblue")+
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.2)
+
+dotplot_1
+
+ggsave("Dotplot_seurat_Day16_Control_YAP1_annotated_1.pdf", dotplot_1, width=25 ,height=9, unit = "cm")
+
+
+dev.off()
+```
+
+
+```{r}
+#############################       Volcano plot DE       ##############################
+
+library(EnhancedVolcano)
+
+Idents(seurat_Day16_Control_YAP1) <- "Treatment"
+
+
+cl_markers_Ctrl.Py60 <- FindMarkers(seurat_Day16_Control_YAP1, ident.1 =c("Mat_control"), ident.2 = c("Py-60 Mat"), only.pos = F)
+
+volcano_1 <- EnhancedVolcano(cl_markers_Ctrl.Py60,
+                             lab = rownames(cl_markers_Ctrl.Py60),
+                             selectLab =  c("WLS","FOXG1","EMX2","SIX3","SIX6","WNT4","WNT2B","FGF17","PAX3","PAX7","OTX2","EN2","IRX3","IRX2","CYP26A1","TFAP2A","HOXB2","GBX2","HAPLN1","PRTG","FOXH1","HESX1","SOX21","SFRP2","SOX10","FOXD3","POU5F1","SOX2","GPC3","COL4A1","NRG1","LHX2","HAPLN3","FAT1","IGFBP2","FGF8","FEZF1","FEZF2","DLK1","FZD5","ZIC2","PRTG","BMP4","BMP7","HYAL2","POU4F1","FJX1","FZD8"),
+                             x = 'avg_log2FC',
+                             y = 'p_val',
+                             title = 'Mat vs Py-60',
+                             pCutoff = 10e-3,
+                             pCutoffCol = "p_val_adj",
+                             FCcutoff = 0.5,
+                             xlim = c(-2, 2),
+                             pointSize = 2,
+                             col=c("maroon3","purple4","grey60","black"),
+                             drawConnectors = T)+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))+ theme(text = element_text(size = 20))    
+
+volcano_1
+
+ggsave( "volcano_cl_markers_Ctrl.Py60.pdf",volcano_1,width=20, height=20, units="cm", dpi = 300 )
+
+write.csv(cl_markers_Ctrl.Py60, "DE_genes_Ctrl_Vs_Py60.csv")
+
+```
+
+
+```{r}
+saveRDS(Day16_Control_YAP1, "Day16_Control_YAP1.rds")
+
+```
+                                                         
+
+

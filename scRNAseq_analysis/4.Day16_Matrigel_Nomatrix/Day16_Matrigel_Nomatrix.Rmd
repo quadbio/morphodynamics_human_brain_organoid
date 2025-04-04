@@ -1,0 +1,294 @@
+
+```{r}
+library (Seurat)
+library(dplyr)
+library(MetBrewer)
+library(presto)
+library(gplots)
+library(RColorBrewer)
+library(ggplot2)
+library(simspec)
+library(SeuratWrappers)
+library(tidyr)
+library(patchwork)
+```
+
+ Day16_Matrigel_Nomatrix
+```{r}
+
+setwd("~/polybox/Jain_Gut_et_al_2023/4.Day16_Matrigel_Nomatrix/")
+
+                                                          
+Day16_Matrigel_Nomatrix<- readRDS("Day16_Matrigel_Nomatrix.rds")
+```
+
+```{r}
+library(tibble)
+
+# See the assigned identity for each level of classification
+Day16_Matrigel_Nomatrix@meta.data %>% 
+    select (HTO_classification, hash.ID)
+
+# Check out the different levels of hash.ID to re-do the assignment of identities
+table (Day16_Matrigel_Nomatrix@meta.data$hash.ID)
+
+# Create a new tibble from the metadata of the integrated object that will contain a mutated column with the new "condition" annotations
+new.metadata <- as.tibble (Day16_Matrigel_Nomatrix@meta.data) %>% 
+  mutate (Condition = as.character (case_when (hash.ID == "Doublet" ~ "Doublet",
+                                               hash.ID == "HTO3" ~ "2",
+                                               hash.ID == "HTO4" ~ "1")))
+                                               
+# Checking the right correspondence
+table (new.metadata$hash.ID, new.metadata$Condition)
+
+# Assign the "condition" column from the dataframe to the newly created "Condition" column in the integrated object - "Condition" appended as a character
+Day16_Matrigel_Nomatrix@meta.data$Condition <- new.metadata$Condition
+
+# Check that the addition of the column was done correctly
+Day16_Matrigel_Nomatrix@meta.data %>% 
+    select (HTO_classification.global, HTO_classification, hash.ID, Condition)
+
+# Reorganize "Condition" levels
+plot_order <- c ("Doublet", "1","2")
+Day16_Matrigel_Nomatrix@meta.data$Condition <- factor (x = Day16_Matrigel_Nomatrix@meta.data$Condition, levels = plot_order)
+
+# Check that we have the right order
+levels (Day16_Matrigel_Nomatrix$Condition)
+
+```
+
+```{r}
+
+# Create a new tibble from the metadata of the integrated object that will contain a mutated column with the new "condition" annotations
+new.metadata <- as.tibble (Day16_Matrigel_Nomatrix@meta.data) %>% 
+  mutate (Treatment = as.character (case_when(Condition == "Doublet" ~ "Doublet",
+                                              Condition == "1" ~ "Matrigel",
+                                              Condition == "2" ~ "No matrix")))
+# Checking the right correspondence
+table (new.metadata$Condition, new.metadata$Treatment)
+
+# Assign the "Treatment" column from the dataframe to the newly created "Treatment" column in the integrated object - appended as a character
+Day16_Matrigel_Nomatrix@meta.data$Treatment <- new.metadata$Treatment
+
+# Check that the addition of the column was done correctly
+Day16_Matrigel_Nomatrix@meta.data %>% 
+    select (HTO_classification.global, HTO_classification, hash.ID, Condition, Treatment)
+
+# Reorganize "Treatment" levels
+plot_order <- c ("Doublet", "Matrigel", "No matrix")
+
+Day16_Matrigel_Nomatrix@meta.data$Treatment <- factor (x = Day16_Matrigel_Nomatrix@meta.data$Treatment, levels = plot_order)
+
+# Check that we have the right order
+levels (Day16_Matrigel_Nomatrix$Treatment)
+
+table (Day16_Matrigel_Nomatrix$Treatment, Day16_Matrigel_Nomatrix$Condition)
+
+```
+
+```{r}
+counts <- GetAssayData(Day16_Matrigel_Nomatrix, assay = "RNA")
+counts <- counts[-(which(grepl("^MT-|^RPS|^HIST",rownames(counts)))),]
+Day16_Matrigel_Nomatrix <- subset(Day16_Matrigel_Nomatrix, features = rownames(counts))
+
+Day16_Matrigel_Nomatrix <- FindVariableFeatures(Day16_Matrigel_Nomatrix, nfeatures = 3000) %>%
+                   ScaleData() %>%
+                   RunPCA(npcs = 20)
+
+Day16_Matrigel_Nomatrix <- FindNeighbors(Day16_Matrigel_Nomatrix, reduction = "pca", dims = 1:20) %>% FindClusters(resolution = 1)
+
+
+Day16_Matrigel_Nomatrix<-RunUMAP(Day16_Matrigel_Nomatrix, reduction = "pca", dims = 1:15)
+
+plot1 <- UMAPPlot(Day16_Matrigel_Nomatrix, cols = met.brewer("Troy", n = 2), group.by = "Treatment",pt.size = 1) &NoAxes()
+plot1
+```
+
+           ######################### Integration CSS Day16_Matrigel_Nomatrix ######################
+
+```{r}
+
+library(simspec)
+
+Day16_Matrigel_Nomatrix<- FindVariableFeatures(Day16_Matrigel_Nomatrix, nfeatures = 3000) %>%
+                   ScaleData() %>%
+                   RunPCA(npcs = 50)
+
+Day16_Matrigel_Nomatrix <- cluster_sim_spectrum(Day16_Matrigel_Nomatrix, label_tag = "orig.ident", cluster_resolution = 0.3)
+
+Day16_Matrigel_Nomatrix <- RunUMAP(Day16_Matrigel_Nomatrix, reduction="css", dims = 1:ncol(Embeddings(Day16_Matrigel_Nomatrix, "css")))%>%
+  FindNeighbors(Day16_Matrigel_Nomatrix, reduction = "css", dims = 1:ncol(Embeddings(Day16_Matrigel_Nomatrix, "css"))) %>%
+  FindClusters(resolution =0.5)
+
+
+plot1 <- UMAPPlot(Day16_Matrigel_Nomatrix,group.by = "Treatment", pt.size = 1, cols = c("#BCBCBC","#161616")) &NoAxes()
+plot1
+
+plot2 <- UMAPPlot(Day16_Matrigel_Nomatrix, label = T)
+plot2
+
+plot3 <- plot1+plot2
+plot3
+
+ggsave("UMAP_CSS_Day16_Matrigel_Nomatrix.jpeg", plot3, width=9,height=5)
+
+```
+
+
+                  ###################################### Feature plots ##################################
+    
+```{r}
+
+FeaturePlot_1 <-  FeaturePlot(Day16_Matrigel_Nomatrix, c( "WLS","NR2F1","SIX3","HESX1","FOXH1","WNT4","FEZF2","WNT2B","SOX10","RAX","SFRP2","PAX3"),  pt.size = 0.2, cols = c("lightgrey",colorRampPalette(c("skyblue","turquoise4" ,"midnightblue"))(50)), order=T, ncol = 6)& NoAxes() &NoLegend()
+
+FeaturePlot_1
+
+ggsave("FeaturePlot_Day16_Matrigel_Nomatrix_1.jpeg", FeaturePlot_1,width=12,height=6)
+
+
+```
+
+             #################################### Dotplot ##############################################
+
+```{r}
+Idents(Day16_Matrigel_Nomatrix) <- "seurat_clusters"
+
+##### DOTPlot ####
+dotplot <- function(exprmat,
+                    genes,
+                    cl,
+                    gene.reorder=TRUE,
+                    specified.order=NULL,
+                    cl.reorder.by.hc=TRUE,
+                    max.diag=TRUE,
+                    emphasize_genes = NULL,
+                    emphasize_cl = NULL,
+                    colors=c("#d9d9d9", "#252525"),
+                    point.size.factor=5,
+                    plot.margin=NULL,
+                    plot.cex=1.2,
+                    col.space.factor=1,
+                    row.space.factor=1,
+                    verbose = F)
+
+
+
+
+genes_2 <- c("POU5F1","MKI67","SOX2","PAX6","NES","VIM","TCF7L2","MAP2","DCX","STMN2","SOX10","OTX2","HESX1","SIX3","FOXG1","LHX2","EMX2","RSPO3","TAL2","WLS","SFRP2","WNT2B", "PAX3","PAX7","LHX5","LHX9","IRX3","GBX2","TFAP2A","TFAP2B","EPCAM" ,"TUBB3","LMX1A","LMX1B","NR2F1","NR2F2","GPM6A")
+
+
+dotplot_1 <- dotplot(Day16_Matrigel_Nomatrix@assays$RNA@data[genes_2,], genes_2, Day16_Matrigel_Nomatrix$seurat_clusters)
+
+dotplot_1 <- DotPlot(object = Day16_Matrigel_Nomatrix, features = genes_2, cluster.idents = T, dot.scale = 8,dot.min = 0,scale.by = "radius") + theme_classic()+ theme(axis.text.x = element_text(angle = 90))+
+  #scale_color_viridis_c()+
+scale_colour_gradient2(low="grey1", mid="grey100", high="midnightblue")+
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.2)
+
+dotplot_1
+
+ggsave("Dotplot_Day16_Matrigel_Nomatrix.pdf", dotplot_1, width=30 ,height=13, unit = "cm")
+
+
+dev.off()
+```
+  
+
+                                  #### New cluster ids reduced ####
+```{r}
+
+Idents(Day16_Matrigel_Nomatrix) <- "seurat_clusters"
+
+# stash current cluster IDs
+Day16_Matrigel_Nomatrix[["cluster.ids"]] <- Idents(object = Day16_Matrigel_Nomatrix)
+
+# enumerate current cluster IDs and the labels for them
+cluster.ids <- c(0, 1, 2, 3, 4, 5, 6, 7, 8)
+
+anno_class1 <- c("Diencephalic progenitors", #  0
+            "Diencephalic progenitors",#  1
+            "N.ecto", #  2
+            "N.ecto", #  3
+            "N.ecto",#  4
+            "Diencephalic progenitors (G2M)", #  5
+            "stem cells", #  6
+            "Neural crest",#P 7
+            "non-neural cells") #8
+
+Day16_Matrigel_Nomatrix@meta.data[,'anno_class1'] <- plyr::mapvalues(x = Day16_Matrigel_Nomatrix@meta.data$cluster.ids, from = cluster.ids, to = anno_class1)
+
+Day16_Matrigel_Nomatrix$anno_class1 <- factor(Day16_Matrigel_Nomatrix$anno_class1, levels = c("stem cells","N.ecto", "Neural crest","Diencephalic progenitors", "Diencephalic progenitors (G2M)","non-neural cells"))
+
+color_anno = c("#FFAF22","#E9C46A","#C15105","#264653","#50779B","#a3b18a","grey40")
+
+
+classdimplot <- DimPlot(Day16_Matrigel_Nomatrix, reduction = "umap", pt.size = 1.5, label = F,order = F, group.by = 'anno_class1', cols = color_anno) & NoAxes()
+classdimplot
+
+ggsave(filename = "annotated_HB4_Day16_Matrigel_Nomatrix_1.pdf", plot = classdimplot,  width =9, height = 9)
+
+```
+
+
+#####   stacked plot
+```{r}
+
+Day16_Matrigel_Nomatrix$Treatment <- factor(Day16_Matrigel_Nomatrix$Treatment, levels = c("Matrigel", "No matrix"))
+
+library(dittoSeq)
+
+barplot_conditions<-dittoBarPlot(
+  object = Day16_Matrigel_Nomatrix,
+  var = "anno_class1",
+  group.by = "Treatment",
+  color.panel = color_anno,
+  retain.factor.levels = T,
+  ylab = "Cluster proportion")
+barplot_conditions
+
+ggsave(filename = "barplot_HB4_Day16_Matrigel_Nomatrix_2.pdf", plot = barplot_conditions,  width =10, height = 7)
+```
+
+```{r}
+#############################       Volcano plot DE       ##############################
+
+
+Idents(Day16_Matrigel_Nomatrix) <- "Treatment"
+
+cl_markers_matVsnomat <- FindMarkers(Day16_Matrigel_Nomatrix, ident.1 =c("Matrigel"), ident.2 = c("No matrix"), only.pos = F)
+
+volcano_1 <- EnhancedVolcano(cl_markers_matVsnomat,
+                             lab = rownames(cl_markers_matVsnomat),
+                             selectLab = c("WLS","PAX6","NR2F2","HESX1","FOXH1","WNT4","WNT2B","RAX","SOX2","POU5F1","ZEB2","IRX2","IRX3","OTX2","NR2F1","DLK1","VIM","PODXl","APOE","CDH1","CDH2","PRTG","CYP26A1","SFRP2","SOX4","LHX2","EMX2","FEZF2","SOX10","BMP7","BMP4"),
+                             x = 'avg_log2FC',
+                             y = 'p_val',
+                             title = 'Mat vs No_Mat',
+                             pCutoff = 10e-3,
+                             pCutoffCol = "p_val_adj",
+                             FCcutoff = 0.5,
+                             xlim = c(-4.5, 4.5),
+                             pointSize = 2,
+                             col=c("darkgreen","maroon3","grey80","black"),
+                             drawConnectors = T)+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))+ theme(text = element_text(size = 20))    
+
+volcano_1
+
+ggsave( "volcano_MATVsnoMatrix.pdf",volcano_1,width=18, height=18, units="cm", dpi = 300 )
+
+write.csv(cl_markers_matVsnomat, "DE_genes_Mat_Vs_NoMat.csv")
+
+
+```
+
+
+
+```{r}
+
+saveRDS(Day16_Matrigel_Nomatrix, "Day16_Matrigel_Nomatrix.rds")
+
+```
+
+
+                                         
+
+

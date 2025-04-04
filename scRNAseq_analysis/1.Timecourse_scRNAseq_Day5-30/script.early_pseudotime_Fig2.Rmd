@@ -1,0 +1,534 @@
+```{r}
+library(dplyr)
+library(Timecourse)
+library(simspec)
+library(destiny)
+library(ggplot2)
+library(MetBrewer)
+library(simspec)
+library(tidyverse)
+library(Seurat)
+library(MetBrewer)
+
+```
+
+```{r}
+setwd("~/polybox/Jain_Gut_et_al_2023/Timecourse")
+
+Timecourse <- readRDS("Timecourse.rds")
+
+p1 <- UMAPPlot(Timecourse, group.by="class3", cols=met.brewer("Moreau",9)) & NoAxes()
+p2 <- UMAPPlot(Timecourse, group.by="dataset",  cols=met.brewer("Johnson",6)) & NoAxes()
+p3 <- FeaturePlot(Timecourse, c("POU5F1","SOX2","TJP1","NES","DCX","MKI67"), cols=met.brewer("Derain",10), order=T, ncol=3) & NoAxes() & NoLegend()
+plot <- ((p1 / p2) | p3) + patchwork::plot_layout(widths = c(1,3))
+
+```
+
+```{r}
+# subset the early cells
+
+Timecourse <- subset(Timecourse, subset = class3 %in% c("Neurectoderm","Late Neurectoderm") & dataset %in% c("HB4 D5","HB4 D7","HB4 D11"))
+
+Timecourse <- FindVariableFeatures(Timecourse, nfeatures = 3000)
+blacklist <- c(unlist(cc.genes.updated.2019), grep("^MT-", rownames(Timecourse), value=T), read.table("RPgenes_bak.txt")[,1])
+VariableFeatures(Timecourse) <- setdiff(VariableFeatures(Timecourse), blacklist)
+Timecourse <- ScaleData(Timecourse, vars.to.regress = c("G2M.Score","S.Score")) %>%
+  RunPCA(npcs = 20) %>%
+  RunUMAP(dims = 1:20)
+p1 <- UMAPPlot(Timecourse, group.by="class3") & NoAxes()
+p2 <- UMAPPlot(Timecourse, group.by="dataset") & NoAxes()
+p1 | p2
+
+library(simspec)
+
+Timecourse <- cluster_sim_spectrum(Timecourse, label_tag = "dataset", cluster_resolution = 1) %>%
+  run_PCA(reduction = "css", npcs = 10, reduction.name = "csspca", reduction.key = "CSSPCA_") %>%
+  regress_out_from_embeddings(reduction = "csspca", vars_to_regress = c("G2M.Score","S.Score"), reduction.name = "csspcacc", reduction.key = "CSSPCACC_")
+
+cor_css2cc <- cor(Embeddings(Timecourse,"csspcacc"), Timecourse@meta.data[,c("G2M.Score","S.Score")], method="spearman")
+Timecourse <- RunUMAP(Timecourse, reduction = "csspcacc", dims = which(apply(abs(cor_css2cc), 1, max) < 0.2))
+p1 <- UMAPPlot(Timecourse, group.by="class3.2") & NoAxes()
+p2 <- UMAPPlot(Timecourse, group.by="dataset") & NoAxes()
+p3 <- FeaturePlot(Timecourse, c("POU5F1","SOX2","NES","MKI67"), cols = beach_colscheme(30), order=T) & NoAxes() & NoLegend()
+((p1 / p2) | p3) + patchwork::plot_layout(widths = c(1,2))
+
+library(destiny)
+
+# diffusion maps
+dm <- DiffusionMap(Embeddings(Timecourse, "csspcacc"), n_pcs = NA)
+mat_dm <- dm@eigenvectors
+rownames(mat_dm) <- colnames(Timecourse)
+Timecourse[['dm']] <- CreateDimReducObject(mat_dm, key="DM_")
+
+layout(matrix(1:3,nrow=1)); par(mar=c(1,1,1,1), cex=1)
+plotFeature(Embeddings(Timecourse, "dm")[,1:2], droplevels(Timecourse$class3), do_legend = T, legend_pos = "bottomleft", legend_cex = 0.8)
+plotFeature(Embeddings(Timecourse, "dm")[,1:2], droplevels(Timecourse$dataset), do_legend = T, legend_pos = "bottomleft", legend_cex = 0.8)
+plotFeature(Embeddings(Timecourse, "dm")[,1:2], factor(Timecourse$Phase), do_legend = T, legend_pos = "bottomleft", legend_cex = 0.8)
+
+dpt <- DPT(dm)
+
+layout(matrix(1:3,nrow=1)); par(mar=c(1,1,1,1), cex=1)
+plotFeature(Embeddings(Timecourse, "dm")[,1:2], dpt$dpt, do_legend = T, legend_pos = "bottomleft", legend_cex = 0.8, colorPal = bluewhitered_colscheme)
+plotFeature(Embeddings(Timecourse, "dm")[,1:2], rank(dpt$dpt), do_legend = T, legend_pos = "bottomleft", legend_cex = 0.8, colorPal = bluewhitered_colscheme)
+plotFeature(Embeddings(Timecourse, "dm")[,1:2], mat_dm[,1]-min(mat_dm[,1]), do_legend = T, legend_pos = "bottomleft", legend_cex = 0.8, colorPal = bluewhitered_colscheme)
+
+Timecourse$dpt <- -dpt$dpt
+Timecourse$dpt_ranked <- rank(-dpt$dpt)/length(dpt$dpt)
+Timecourse$dc1 <- -mat_dm[,1]
+Timecourse$dc1_ranked <- rank(-mat_dm[,1])/nrow(mat_dm)
+
+p1 <- UMAPPlot(Timecourse, group.by="dataset", cols = met.brewer("Moreau", 3)) & NoAxes()
+p1
+
+feature_p1 <- FeaturePlot(Timecourse, c("ITGA6","ITGB5","ITGB1","VCAN","COL4A1","COL1A1","COL2A1","GPC3","GPC4","COL4A6","COL11A1","LAMA5","KRT18","KRT8","MT1X","HYAL2","HAPLN3","SDC4","PCDH18","PCDH10","PRTG","ITGAE","LAMB2","LAMC1"), ncol=7, pt.size = 0.2,order=T,cols= c("grey90",colorRampPalette(c("grey95","grey80" ,"midnightblue"))(50)))  & NoAxes() &NoLegend()
+
+ggsave(filename = "pseudotime_featureplots_ECM_genes_1.pdf", plot = feature_p1, device = "pdf", width =20, height = 10)
+
+
+feature_p1 <- FeaturePlot(Timecourse, c("IGFBP5","IGFBP2","MMP16","CDH1","FAT1","HAPLN3","COL11A1","PRTG","COL4A5","LAMA5","ITGA6","PCDH11X","IGFBP3","COL6A1","CDH11","CLSTN1","KRT19","COL1A1","COL4A2","GPC3","COL4A6","COL4A1","ITGA6","ITGB5","SDC1","SDC2","SDC3","SDC4"), ncol=7, pt.size = 0.1, order=T,cols= c(colorRampPalette(c("grey95","grey80","midnightblue"))(30)))  & NoAxes() &NoLegend()
+feature_p1
+
+ggsave(filename = "pseudotime_featureplots_ECM_genes_2.png", plot = feature_p1, device = "png", width =26, height = 12)
+
+
+feature_p1 <- FeaturePlot(Timecourse, c("IGFBP5","COL1A1","COL4A1","FAT1","HAPLN3","CDH1","SDC4","LAMC1","CLSTN1"), ncol=6, pt.size = 0.6, order=T, cols= c("grey99",colorRampPalette(c("grey95","grey80","black"))(30)))  & NoAxes() 
+
+
+feature_p1
+
+ggsave(filename = "pseudotime_featureplots_ECM_genes_3.png", plot = feature_p1, device = "png", width =20, height =6)
+
+
+p2 <- FeaturePlot(Timecourse, c("dpt_ranked","dc1_ranked"), cols = bluered_colscheme(30), order=T) & NoAxes() & NoLegend()
+plot <- p1 | p2
+
+p3 <- UMAPPlot(Timecourse, group.by="class3.2", cols = c("grey90","grey10")) & NoAxes()
+
+
+
+ggsave(filename = "pseudotime_D5_D7_D11_dc1rank.png.png", plot = p2, device = "png", width =5, height = 2.5)
+ggsave(filename = "pseudotime_D5_D7_D11_dc1rank.pdf.pdf", plot = p2, device = "pdf", width =5, height = 2.5)
+
+
+ ggplot(Timecourse@meta.data, aes(x = dpt_ranked, y = nCount_RNA)) +
+  geom_line()+
+  theme_classic()
+
+```
+
+
+
+
+```{r}
+saveRDS(Timecourse, file="early_processed.Timecourse.rds")
+
+Timecourse <- readRDS("early_processed.Timecourse.rds")
+```
+
+
+```{r}
+prop <- apply(table(ceiling(Timecourse$dc1_ranked * 20), droplevels(Timecourse@meta.data$dataset)), 1, function(x) x/sum(x))
+layout(matrix(rep(c(1,2),c(5,1)), nrow=1)); par(mar=c(5,5,1,1), cex=1)
+barplot(prop, col = scales::hue_pal()(3), border=NA, xlab = "Pseudotime bin", ylab = "Proportions")
+par(mar=c(1,1,1,1)); plot.new()
+legend("center", levels(droplevels(Timecourse@meta.data$dataset)), border=NA, fill=scales::hue_pal()(3), bty="n")
+
+p1 <- ggplot(Timecourse@meta.data, aes(x = dc1_ranked, colour = dataset, fill = dataset)) +
+  geom_density(alpha = 0.7) +
+  theme_classic()
+p2 <- ggplot(Timecourse@meta.data, aes(x = dc1_ranked, colour = class3, fill = class3)) +
+  geom_density(alpha = 0.7) +
+  theme_classic()
+p3 <- ggplot(Timecourse@meta.data, aes(x = dpt_ranked, colour = dataset, fill = dataset)) +
+  geom_density(alpha = 0.7) +
+  theme_classic()
+p4 <- ggplot(Timecourse@meta.data, aes(x = dpt_ranked, colour = class3, fill = class3)) +
+  geom_density(alpha = 0.7) +
+  theme_classic()
+(p1 | p2) / (p3 | p4)
+
+p1 <- UMAPPlot(Timecourse, group.by="dataset", shuffle=T, seed=100, cols =  met.brewer("Moreau",6)) & NoAxes()
+p2 <- DimPlot(Timecourse, group.by="dataset", reduction="dm", shuffle=T, seed=100,cols =  met.brewer("Moreau",6)) & NoAxes()
+p3 <- FeaturePlot(Timecourse, c("dc1_ranked"), cols = bluered_colscheme(30), order=T) & NoAxes() 
+p4 <- ggplot(Timecourse@meta.data, aes(x = dc1_ranked, colour = dataset, fill = dataset))+
+  scale_color_manual(values= met.brewer("Moreau",6)) +
+  scale_fill_manual(values= met.brewer("Moreau",6)) +
+  geom_density(alpha = 0.7) +
+  theme_classic()
+
+p5 <- ggplot(Timecourse@meta.data, aes(x = dc1_ranked, colour = class3.2, fill = class3.2)) +
+  scale_color_manual(values=c("grey90","grey10")) +
+  scale_fill_manual(values=c("grey90","grey10")) +
+  geom_density(alpha = 0.8) +
+  theme_classic()
+
+plot <- (p1 | p2 | p3) / (p4 | p5)
+plot
+
+ggsave(filename = "pseudotime_D5_D7_D11_5.png", plot = plot, device = "png", width =14, height = 6)
+ggsave(filename = "pseudotime_D5_D7_D11_5.pdf", plot = plot, device = "pdf", width =14, height = 6)
+
+
+```
+
+
+```{r}
+# turning point analysis
+## only look at cells with pt<0.75 (afterwards the time points distribution looks a bit weird)
+## doesn't seem to provide useful output (not many turning points at the middle)
+
+idx_cells <- which(Timecourse$dc1_ranked < 0.75)
+det_rates <- rowMeans(Timecourse[['RNA']]@data[,idx_cells] > 0)
+candidates <- names(which(det_rates > 0.01))
+
+res_pt_dep <- pt_dep_test_ns(expr = Timecourse[['RNA']]@data[candidates,idx_cells],
+                             pt = Timecourse$dc1_ranked[idx_cells],
+                             num_threads = 20)
+idx_pt_dep <- which(p.adjust(res_pt_dep$Resi, method="BH") < 0.1)
+
+avg_expr_pt_bins <- sapply(1:100, function(idx)
+  rowMeans(Timecourse[['RNA']]@data[candidates, which(ceiling(Timecourse$dc1_ranked * 100)==idx)]))
+cor2pt <- apply(avg_expr_pt_bins[,1:75], 1, function(e) cor(e, 1:length(e), method="spearman"))
+hist(cor2pt, breaks = 20)
+hist(cor2pt[idx_pt_dep], col = "#696969", breaks = 20)
+idx_pt_dep_nl <- setdiff(idx_pt_dep, which(abs(cor2pt) > 0.5))
+hist(cor2pt[idx_pt_dep_nl],  col = "#303030", breaks = 20)
+
+res_tp <- turning_point_test(expr = Timecourse[['RNA']]@data[candidates,idx_cells],
+                             pt = Timecourse$dc1_ranked[idx_cells],
+                             nknots = 20,
+                             num_threads = 20)
+idx_tp <- idx_pt_dep_nl[which(p.adjust(res_tp$p_ANCOVA[idx_pt_dep_nl], method="BH")<0.01)]
+layout(matrix(1)); par(mar=c(5,5,5,1))
+hist(res_tp$bestTP_ANCOVA[idx_tp], xlab="Turning point", ylab="Frequency")
+
+```
+
+```{r}
+
+# DE between cell groups based on pseudotimes
+## group 1: [0, 0.25)
+## group 2: [0.25, 0.5)
+## group 3: [0.5, 0.75)
+idx1 <- which(Timecourse$dc1_ranked >= 0 & Timecourse$dc1_ranked < 0.25)
+idx2 <- which(Timecourse$dc1_ranked >= 0.25 & Timecourse$dc1_ranked < 0.5)
+idx3 <- which(Timecourse$dc1_ranked >= 0.5 & Timecourse$dc1_ranked < 0.75)
+Timecourse$dc1_grouped <- NA
+Timecourse$dc1_grouped[idx1] <- 1
+Timecourse$dc1_grouped[idx2] <- 2
+Timecourse$dc1_grouped[idx3] <- 3
+Timecourse$dc1_grouped <- factor(Timecourse$dc1_grouped)
+
+det_rates <- rowMeans(Timecourse[['RNA']]@data[,c(idx1,idx2,idx3)] > 0)
+DE_g2 <- presto::wilcoxauc(Timecourse, group_by = "dc1_grouped", groups_use = c(1,2,3)) %>%
+  filter(group == 2)
+DEG_g2 <- DE_g2 %>%
+  filter(abs(logFC) > log(1.05) & padj < 1E-4 & det_rates[feature] > 0.01)
+
+hcl_DEG_g2 <- hclust(as.dist(1-cor(t(avg_expr_pt_bins[DEG_g2$feature,1:75]), method="spearman")), method="ward.D2")
+gplots::heatmap.2(avg_expr_pt_bins[DEG_g2$feature,1:75], Rowv = as.dendrogram(hcl_DEG_g2), Colv=NA, dendrogram="row",
+                  scale="row", trace="none", key=F, keysize = 0.5,
+                  col = bluewhitered_colscheme(30))
+
+mat <- t(apply(avg_expr_pt_bins[DEG_g2$feature,1:75], 1, function(x) (x-min(x))/(max(x)-min(x))))
+gplots::heatmap.2(mat, Rowv = as.dendrogram(hcl_DEG_g2), Colv=NA, dendrogram="row",
+                  scale="none", trace="none", key=F, keysize = 0.5,
+                  col = bluewhitered_colscheme(30))
+
+cl_DEG_g2 <- cutree(hcl_DEG_g2, 4)
+ggplot(data = data.frame(gene = rep(DEG_g2$feature, each = ncol(mat)),
+                         group = factor(rep(cl_DEG_g2, each = ncol(mat))),
+                         pt = rep(1:ncol(mat), length(DEG_g2$feature)),
+                         expr = as.numeric(scale(t(mat)))), 
+       aes(x = pt, y = expr, color = group)) +
+  geom_point(alpha = 0.05) + 
+  geom_smooth(se = TRUE, method = "lm", formula = y ~ splines::ns(x, df=5), level = 0.999) +
+  theme_bw()
+
+genes2check <- DEG_g2$feature[cl_DEG_g2 %in% c(1,2)]
+genes_bg <- names(which(det_rates > 0.01))
+library(biomaRt)
+ensembl <- useEnsembl(biomart = "ensembl",
+                      dataset = "hsapiens_gene_ensembl")
+meta_bg <- getBM(attributes = c("ensembl_gene_id",
+                                "hgnc_symbol"),
+                 filters = "hgnc_symbol",
+                 values = genes_bg,
+                 mart = ensembl) %>%
+  right_join(data.frame(symbol = genes_bg), by = c("hgnc_symbol" = "symbol")) %>%
+  mutate(symbol = make.unique(hgnc_symbol))
+ens_bg <- meta_bg$ensembl_gene_id[meta_bg$symbol %in% genes_bg]
+
+write.table(genes2check, file="genelist_DEG_g2.txt", quote=F, row.names=F, col.names=F)
+write.table(ens_bg, file="genelist_bg.txt", quote=F, row.names=F, col.names=F)
+
+```
+
+```{r}
+
+# expression patterns of all pseudotime-dependent genes
+
+idx_cells <- which(Timecourse$dc1_ranked < 0.75)
+det_rates <- rowMeans(Timecourse[['RNA']]@data[,idx_cells] > 0)
+candidates <- names(which(det_rates > 0.01))
+
+
+res_pt_dep <- pt_dep_test_ns(expr = Timecourse[['RNA']]@data[candidates,idx_cells],
+                             pt = Timecourse$dc1_ranked[idx_cells],
+                             num_threads = 20)
+res_pt_dep <- tibble::rownames_to_column(res_pt_dep, "gene")
+res_pt_dep$corr2pt_sc <- as.numeric(cor(t(as.matrix(Timecourse[['RNA']]@data[candidates,idx_cells])), Timecourse$dc1_ranked[idx_cells], method="spearman"))
+res_pt_dep$corr2pt_bin <- cor2pt[res_pt_dep$gene]
+write.table(res_pt_dep, file="res.pt_dep.txt", sep="\t", quote=F, row.names=F)
+
+idx_pt_dep <- which(p.adjust(res_pt_dep$ANOVA, method="bonferroni") < 0.05)
+idx_pt_dep <- which(p.adjust(res_pt_dep$Resi, method="BH") < 0.1)
+genes_pt_dep <- candidates[idx_pt_dep]
+
+res_pt_dep <- res_pt_dep %>%
+  mutate(padj_ANCOVA = p.adjust(ANCOVA, method="bonferroni")) %>%
+  mutate(padj_Resi = p.adjust(Resi, method="BH")) %>%
+  mutate(is_pt_dep_strict = padj_Resi < 0.1) %>%
+  mutate(is_pt_dep_relaxed = padj_ANCOVA < 0.05)
+write.table(res_pt_dep, file="res.pt_dep.txt", sep="\t", quote=F, row.names=F)
+
+mat <- t(apply(avg_expr_pt_bins[genes_pt_dep, ], 1, function(x) (x-min(x))/(max(x)-min(x))))
+hcl_pt_dep_genes <- hclust(as.dist(1-cor(t(mat), method="spearman")), method="complete")
+hcl_pt_bins <- hclust(as.dist(1-cor(mat)), method="ward.D2")
+
+png(file = "heatmap_genes_pseudotime_1.png", width = 30, height = 40, units = "cm", res = 300)
+
+gplots::heatmap.2(mat, Rowv = as.dendrogram(hcl_pt_dep_genes), Colv = as.dendrogram(hcl_pt_bins), dendrogram="both",
+                  scale="none", trace="none", key=F, keysize = 0.5,
+                  col = bluewhitered_colscheme(30),
+                  ColSideColors = greyscale_colscheme(ncol(mat)),
+                  cexRow = 1, cexCol = 1, margins = c(5,8))
+dev.off()
+
+Cyan_red_colscheme <- colorRampPalette(rev(c("coral","grey95","cyan4")))
+
+BW_colscheme <- colorRampPalette((c("grey95","grey80","grey9")))
+
+png(file = "heatmap_genes_pseudotime_3.png", width = 30, height = 40, units = "cm", res = 300)
+pdf(file = "heatmap_genes_pseudotime_3.pdf", width = 20, height = 30)
+
+gplots::heatmap.2(mat, Rowv = as.dendrogram(hcl_pt_dep_genes), Colv = NA, dendrogram="row",
+                  scale="none", trace="none", key=F, keysize = 0.5,
+                  col = BW_colscheme(30),
+                  ColSideColors = Cyan_red_colscheme(ncol(mat)),
+                  cexRow = 1, cexCol = 1, margins = c(5,8))
+
+dev.off()
+
+```
+
+```{r}
+
+# directly look at ECM genes
+ecm_panel <- list(Integrins = c("ITGA1","ITGA2","ITGA3","ITGA4","ITGA5","ITGA6","ITGA7","ITGA8","ITGA9","ITGA10","ITGA11","ITGAD","ITGAE","ITGAL","ITGAM", # Integrins-1
+                                "ITGAV","ITGA2B","ITGAX","ITGB1","ITGB2","ITGB3","ITGB4","ITGB5","ITGB6","ITGB7","ITGB8"), # Integrins-2
+                  Collagens = c("COL1A1","COL1A2","COL2A1","COL3A1","COL4A1","COL4A2","COL4A3","COL4A4","COL4A5","COL4A6","COL5A1","COL5A2","COL5A3", # Collagens-1
+                                "COL6A1","COL6A2","COL6A3","COL6A4P1","COL6A4P2","COL6A5","COL6A6","COL7A1","COL8A1","COL8A2","COL9A1","COL9A2","COL9A3", # Collagens-2
+                                "COL10A1","COL11A1","COL11A2","COL12A1","COL13A1","COL14A1","COL15A1","COL16A1","COL17A1","COL18A1","COL19A1","COL20A1", # Collagens-3
+                                "COL21A1","COL22A1","COL23A1","COL24A1","COL25A1","COL26A1","COL27A1","COL28A1"), # Collagens-4
+                  Laminin = c("LAMA1","LAMA2","LAMA3","LAMA4","LAMA5","LAMB1","LAMB2","LAMB3","LAMB4","LAMC1","LAMC2","LAMC3"), # Laminin
+                  Netrin = c("NTNG1","NTNG2","NTN1","NTN3","NTN4","NTN5"), # Netrin
+                  Aquoporins = c("AQP1","AQP2","AQP3","AQP4"), # Aquoporins
+                  Keratins = c("KRT9","KRT10","KRT12","KRT13","KRT14","KRT15","KRT16","KRT17","KRT18","KRT19","KRT20","KRT23","KRT24","KRT25","KRT26", # Keratins-1
+                               "KRT27","KRT28","KRT31","KRT32","KRT33A","KRT33B","KRT34","KRT35","KRT36","KRT37","KRT38","KRT39","KRT40"), # Keratins-2
+                  Tenascins = c("TNC","TNN","TNR","TNXB"), # Tenascins
+                  Cadherins = c("CDH1","CDH2","CDH3","CDH4","CDH15","CDH5","CDH6","CDH7","CDH8","CDH9","CDH10","CDH11","CDH12","CDH18","CDH19", # Cadherins-1
+                                "CDH20","CDH22","CDH24","CDH16","CDH17","DSC1","DSC2","DSC3","DSG1","DSG2","DSG3","DSG4","CELSR1","CELSR2","CELSR3"), # Cadherins-2
+                  Protocadherins = c("PCDHACT","PCDHAC1","PCDHAC2","PCDHA1","PCDHA2","PCDHA3","PCDHA4","PCDHA5","PCDHA6","PCDHA7","PCDHA8","PCDHA9","PCDHA10", # Protocadherins-1
+                                     "PCDHA11","PCDHA12","PCDHA13","PCDHA14","PCDHB1","PCDHB2","PCDHB3","PCDHB4","PCDHB5","PCDHB6","PCDHB7","PCDHB8","PCDHB9", # Protocadherins-2
+                                     "PCDHB10","PCDHB11","PCDHB12","PCDHB13","PCDHB14","PCDHB15","PCDHB16","PCDHB17P","PCDHB18P","PCDHB19P","PCDHGA1","PCDHGA2", # Protocadherins-3
+                                     "PCDHGA3","PCDHGA4","PCDHGA5","PCDHGA6","PCDHGA7","PCDHGA8","PCDHGA9","PCDHGA10","PCDHGA11","PCDHGA12","PCDHGB1","PCDHGB2", # Protocadherins-4
+                                     "PCDHGB3","PCDHGB4","PCDHGB5","PCDHGB6","PCDHGB7","PCDHGB8P","PCDHGB9P","PCDHGCT","PCDHGC3","PCDHGC4","PCDHGC5","PCDH1", # Protocadherins-5
+                                     "PCDH7","PCDH8","PCDH9","PCDH10","PCDH11X","PCDH11Y","PCDH12","PCDH17","PCDH18","PCDH19","PCDH20","CDHR1","CDHR2","CDHR3", # Protocadherins-6
+                                     "CDHR4","CDHR5","DCHS1","DCHS2","FAT1","FAT2","FAT3","FAT4","CLSTN1","CLSTN2","CLSTN3","PCDH15","RET","CDH23"), # Protocadherins-7
+                  FAKs = c("PTK2","PTK2B"), # FAKs
+                  metallotheionies = c("MT1A","MT1B","MT1CP","MT1DP","MT1E","MT1F","MT1G","MT1H","MT1HL1","MT1IP","MT1JP","MT1L","MT1M","MT1P1","MT1P3","MT1X","MT2A","MT3","MT4"), # metallotheionies
+                  MMP = c("MMP1","MMP2","MMP3","MMP7","MMP8","MMP9","MMP10","MMP11","MMP12","MMP13","MMP14","MMP15","MMP16","MMP17","MMP19","MMP20", # MMPs-1
+                          "MMP21","MMP23A","MMP23B","MMP24","MMP25","MMP26","MMP27","MMP28"), # MMPs-2
+                  "Hyaluronic acid related" = c("HAS2","HAS3","HAS1","HMMR","CD44","LYVE1","HABP2","HYAL1","HAPLN1","HABP4","HAPLN3","HAPLN2","TNFAIP6","HAPLN4","CEMIP", # Hyaluronic acid related-1
+                                                "HYAL2","STAB2","C1QBP","ITIH2","ITIH1","TGFB1","HYAL3","CEMIP2","HYAL4","VCAN","HAS2-AS1"), # Hyaluronic acid related-2
+                  Syndecans = c("SDC1","SDC2","SDC3","SDC4"), # Syndecans
+                  Glypicans = c("GPC1","GPC2","GPC3","GPC4","GPC5","GPC6"), # Glypicans
+                  "mall leucin rich repeat proteoglycans" = c("BGN","DCN","ASPN","PRELP","KERA","OMD","LUM","FMOD","OGN","EPYC","CHAD","PODN"), # small leucin rich repeat proteoglycans
+                  Hyalectans = c("ACAN","BCAN","NCAN","VCAN"), # Hyalectans
+                  "ECM signaling" = c("NDP","FZD4"), # ECM signaling
+                  "add for sure" = c("PRTG","HESX1"), # add for sure
+                  IGFBPs = c("IGFBP1","IGFBP2","IGFBP3","IGFBP4","IGFBP5","IGFBP6") # IGFBPs
+)
+
+res_pt_dep$is_ECM <- res_pt_dep$gene %in% unlist(ecm_panel)
+write.table(res_pt_dep, file="res.pt_dep.txt", sep="\t", quote=F, row.names=F)
+
+df_ecm_genes <- data.frame(category = rep(names(ecm_panel), lengths(ecm_panel)),
+                           gene = unlist(ecm_panel),
+                           row.names = NULL) %>%
+  filter(gene %in% rownames(avg_expr_pt_bins)) %>%
+  mutate(cor2pt = cor2pt[gene]) %>%
+  mutate(pt_dep = gene %in% res_pt_dep$gene[which(p.adjust(res_pt_dep$ANOVA, method="bonferroni") < 0.05)])
+
+
+mat <- t(apply(avg_expr_pt_bins[df_ecm_genes$gene[df_ecm_genes$pt_dep], ], 1, function(x) (x-min(x))/(max(x)-min(x))))
+hcl_ecm_genes <- hclust(as.dist(1-cor(t(mat), method="spearman")), method="ward.D2")
+hcl_pt_bins <- hclust(as.dist(1-cor(mat)), method="ward.D2")
+
+
+
+png(file = "heatmap_genes_pseudotime_ECM_1.png", width = 30, height = 40, units = "cm", res = 300)
+gplots::heatmap.2(mat, Rowv = as.dendrogram(hcl_ecm_genes), Colv = as.dendrogram(hcl_pt_bins), dendrogram="both",
+                  scale="none", trace="none", key=F, keysize = 0.5,
+                  col = Cyan_red_colscheme(30),
+                  ColSideColors = greyscale_colscheme(ncol(mat)),
+                  cexRow = 1, cexCol = 1, margins = c(5,8))
+dev.off()
+
+# directly look at cell-cycle frequency and genes
+df_cc_genes <- data.frame(category = rep(names(cc.genes.updated.2019), lengths(cc.genes.updated.2019)),
+                          gene = unlist(cc.genes.updated.2019),
+                          row.names = NULL) %>%
+  filter(gene %in% rownames(avg_expr_pt_bins)) %>%
+  mutate(cor2pt = cor2pt[gene]) %>%
+  mutate(pt_dep = gene %in% ( res_pt_dep$gene)[which(p.adjust(res_pt_dep$ANOVA, method="bonferroni") < 0.05)])
+
+
+
+mat <- t(apply(avg_expr_pt_bins[df_cc_genes$gene[df_cc_genes$pt_dep], ], 1, function(x) (x-min(x))/(max(x)-min(x))))
+hcl_cc_genes <- hclust(as.dist(1-cor(t(mat), method="spearman")), method="ward.D2")
+hcl_pt_bins <- hclust(as.dist(1-cor(mat)), method="ward.D2")
+
+png(file = "heatmap_genes_pseudotime_cell_cycle.png", width = 30, height = 40, units = "cm", res = 300)
+
+gplots::heatmap.2(mat, Rowv = as.dendrogram(hcl_cc_genes), Colv = as.dendrogram(hcl_pt_bins), dendrogram="both",
+                  scale="none", trace="none", key=F, keysize = 0.5,
+                  col = BW_colscheme(30),
+                  ColSideColors = greyscale_colscheme(ncol(mat)),
+                  cexRow = 1, cexCol = 1, margins = c(5,8))
+dev.off()
+
+```
+
+
+```{r}
+
+saveRDS(Timecourse, file="early_processed.Timecourse.rds")
+
+```
+
+
+
+```{r}
+res.pt_dep <- read.delim(file = "res.pt_dep.txt")
+
+res.pt_dep_relaxed <- subset(res.pt_dep, is_pt_dep_relaxed == "TRUE")
+
+res.pt_dep_relaxed_positive <- subset(res.pt_dep_relaxed, corr2pt_bin > 0)
+# sort
+res.pt_dep_relaxed_positive <- res.pt_dep_relaxed_positive[order(-res.pt_dep_relaxed_positive$corr2pt_bin),]
+
+res.pt_dep_relaxed_positive <- res.pt_dep_relaxed_positive[1:3000,]
+
+
+res.pt_dep_relaxed_negative <- subset(res.pt_dep_relaxed, corr2pt_bin < 0)
+res.pt_dep_relaxed_negative <- res.pt_dep_relaxed_negative[order(res.pt_dep_relaxed_negative$corr2pt_bin),]
+
+res.pt_dep_relaxed_negative <- res.pt_dep_relaxed_negative[1:3000,]
+
+
+
+
+write.csv(res.pt_dep_relaxed_positive, file="res.pt_dep_relaxed_positive.csv")
+write.csv(res.pt_dep_relaxed_negative, file="res.pt_dep_relaxed_negative.csv")
+
+
+
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("biomaRt")
+
+library(biomaRt)
+
+ensembl <- useEnsembl(biomart = "ensembl",
+                      dataset = "hsapiens_gene_ensembl",
+                      version = 93)
+meta_genes <- getBM(attributes = c("ensembl_gene_id",
+                                   "ensembl_gene_id_version",
+                                   "hgnc_symbol",
+                                   "description",
+                                   "chromosome_name",
+                                   "start_position",
+                                   "end_position",
+                                   "strand"),
+                    filters = "hgnc_symbol",
+                    values = res.pt_dep$gene,
+                    mart = ensembl) %>%
+  right_join(data.frame(hgnc_symbol= res.pt_dep$gene),
+             by = "hgnc_symbol") %>%
+  distinct(hgnc_symbol, .keep_all = TRUE)
+
+write.table(meta_genes$ensembl_gene_id[meta_genes$hgnc_symbol %in% detected_genes], file="background_res.pt_dep_allgenes.tsv", quote=F, sep="\t", row.names=F, col.names=F)
+
+
+
+
+
+
+```   
+
+             #######   cleanup DAVID output in excel, import and plot (script from Surayo)
+            
+```{r}
+
+#producing lollipop plots for visualisation of DAVID analysis of proximal tubular epithelial cells
+
+#load the upregulated terms
+Top_20_clusters_DAVID_pseudotime_positive_top_3000genes_relaxed <- read.csv("Top_20_clusters_DAVID_pseudotime_positive_top_3000genes_relaxed.csv")
+
+
+#get only first item for each cluster in upregulated terms
+Top_20_clusters_DAVID_pseudotime_positive_top_3000genes_relaxed_top <- aggregate(Top_20_clusters_DAVID_pseudotime_positive_top_3000genes_relaxed, by=list(Top_20_clusters_DAVID_pseudotime_positive_top_3000genes_relaxed$Function_group), FUN=first)
+
+Top_20_clusters_DAVID_pseudotime_positive_top_3000genes_relaxed_GOTERM <- filter(Top_20_clusters_DAVID_pseudotime_positive_top_3000genes_relaxed, str_detect(Category, "GOTERM"))
+
+#plot the downregulated terms
+#plot1_de <- DE_wilcoxauc_wt_vs_mutants_proximal_tubular_epithelial_cells_down_cluster %>% ggplot(aes(x = Fold.Enrichment, y = Term)) + geom_segment(aes(x = 0, y = Term, xend = Fold.Enrichment, yend = Term), color = "azure4") +
+ # geom_point(aes(size = PValue), alpha = 0.7, color = "cyan4") + 
+ # scale_size(range = c(7, 1)) + 
+ # labs(title = "Downregulated genes in proximal tubular epithelial cells") + 
+ # theme_minimal()
+
+#######################################################################################################
+
+DAVID_pseudotime_positive_top_3000genes_relaxed_GOTERM_CC <- read.csv("DAVID_pseudotime_positive_top_3000genes_relaxed_GOTERM_CC.csv")
+
+top <- DAVID_pseudotime_positive_top_3000genes_relaxed_GOTERM_CC %>% 
+  slice(1:25)
+
+top$Term <- factor(top$Term, levels =top$Term[order(top$Fold.Enrichment)])
+top  # notice the changed order of factor levels
+
+
+#plot the upregulated terms
+plot2_de_2 <- top %>% ggplot(aes(x = Fold.Enrichment, y = Term, fill = PValue)) +
+  geom_segment(aes(x = 0, y = Term, xend = Fold.Enrichment, yend = Term), color = "azure4") +
+  geom_point(aes(fill = PValue, size = Count), alpha = 1,color = "black",shape = 21, stroke = 0.3) +
+  scale_fill_gradientn(colours = c( "grey9","white"))+
+  scale_size(range = c(7, 1)) + 
+  theme_classic()
+
+#+
+ # theme(axis.title.y=element_blank(),
+  #      axis.text.y =element_blank(),
+   #     axis.ticks.y=element_blank())
+plot2_de_2
+
+ggsave("GOTERM-CC_DIRECT_lolipop_ptd_positive3000_relaxed_top25_FoldEnr_Count_1.pdf",plot2_de_2,width= 6,height=5)
+
+
+```
+
+
