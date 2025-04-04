@@ -89,8 +89,6 @@ def calc_translation(
                 np.median(w[target != 0]),
             ]
 
-        translation_avg[1:] = translation_avg[1:] * (2 ** (int(pyramid_order)))
-
     else:
         translation_all = []
         for k in range(1, num_comparisons + 1):
@@ -163,7 +161,6 @@ def calc_translation(
                         num_iter=10,
                         attachment=64,
                     )
-                    # v,u= skimage.registration.optical_flow_ilk(moving_axis,target_axis,prefilter=True,radius=80)
                     translation.append(
                         [np.median(v[target_axis != 0]), np.median(u[target_axis != 0])]
                     )

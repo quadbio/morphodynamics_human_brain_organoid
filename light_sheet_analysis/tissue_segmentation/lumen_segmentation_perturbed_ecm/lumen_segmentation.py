@@ -59,7 +59,7 @@ def main(argv):
     import joblib
 
     # Loacation of rf classifier
-    rf_location = "/cluster/home/gutgi/git_repositories/morphodynamics-of-human-brain-organoid-patterning/light_sheet_analysis/tissue_segmentation/rf_classifier/"
+    rf_location = "/rf_classifier/"
 
     # load RF
     clf = joblib.load(rf_location + "lumen_agar_v15_05.joblib")
