@@ -16,10 +16,11 @@ library(patchwork)
  Day16_Matrigel_Nomatrix
 ```{r}
 
-setwd("~/polybox/Jain_Gut_et_al_2023/4.Day16_Matrigel_Nomatrix/")
+setwd("~/polybox/Jain_Gut_et_al_2023/scRNAseq_analysis_data//4.Day16_Matrigel_Nomatrix/")
 
                                                           
 Day16_Matrigel_Nomatrix<- readRDS("Day16_Matrigel_Nomatrix.rds")
+
 ```
 
 ```{r}
@@ -130,8 +131,6 @@ plot2
 plot3 <- plot1+plot2
 plot3
 
-ggsave("UMAP_CSS_Day16_Matrigel_Nomatrix.jpeg", plot3, width=9,height=5)
-
 ```
 
 
@@ -142,9 +141,6 @@ ggsave("UMAP_CSS_Day16_Matrigel_Nomatrix.jpeg", plot3, width=9,height=5)
 FeaturePlot_1 <-  FeaturePlot(Day16_Matrigel_Nomatrix, c( "WLS","NR2F1","SIX3","HESX1","FOXH1","WNT4","FEZF2","WNT2B","SOX10","RAX","SFRP2","PAX3"),  pt.size = 0.2, cols = c("lightgrey",colorRampPalette(c("skyblue","turquoise4" ,"midnightblue"))(50)), order=T, ncol = 6)& NoAxes() &NoLegend()
 
 FeaturePlot_1
-
-ggsave("FeaturePlot_Day16_Matrigel_Nomatrix_1.jpeg", FeaturePlot_1,width=12,height=6)
-
 
 ```
 
@@ -245,7 +241,6 @@ barplot_conditions<-dittoBarPlot(
   ylab = "Cluster proportion")
 barplot_conditions
 
-ggsave(filename = "barplot_HB4_Day16_Matrigel_Nomatrix_2.pdf", plot = barplot_conditions,  width =10, height = 7)
 ```
 
 ```{r}
@@ -281,12 +276,6 @@ write.csv(cl_markers_matVsnomat, "DE_genes_Mat_Vs_NoMat.csv")
 ```
 
 
-
-```{r}
-
-saveRDS(Day16_Matrigel_Nomatrix, "Day16_Matrigel_Nomatrix.rds")
-
-```
 
 
                                          

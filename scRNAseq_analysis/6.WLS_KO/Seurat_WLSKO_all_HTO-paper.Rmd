@@ -1,0 +1,256 @@
+
+```{r}
+library (Seurat)
+library(dplyr)
+library(MetBrewer)
+library(presto)
+library(gplots)
+library(RColorBrewer)
+library(ggplot2)
+library(simspec)
+library(SeuratWrappers)
+library(tidyr)
+library(dplyr)
+
+```
+
+                                    #### pre-processing steps
+
+          #Seurat <- SCTransform(Seurat, variable.features.n = 1000)
+          #VariableFeaturePlot(Seurat, selection.method = "sct", assay = "SCT")
+
+          #Seurat <- NormalizeData (Seurat, normalization.method = "LogNormalize", scale.factor = 10000)
+
+          # Select the top 1000 most variable features
+          #Seurat <- FindVariableFeatures (Seurat, nfeatures = 3000, selection.method = "vst")
+
+          #Seurat <- subset (Seurat, subset = nFeature_RNA > 500 & percent.mt < 10)
+          #Seurat <- ScaleData (Seurat)
+
+          #Seurat <- RunPCA (Seurat, features = VariableFeatures (Seurat)) 
+
+          #Seurat <- FindNeighbors (Seurat, reduction = "pca", dims = 1:20)
+          #Seurat <- FindClusters (Seurat, resolution = 0.8)
+
+                          ########## HTO classification #######
+                          
+                          Condition == "1" ~ "control_Mat",
+                          Condition == "2" ~ "WLSKO_Mat",
+                          Condition == "3" ~ "control_NoMat",
+                          Condition == "4" ~ "WLSKO_NoMat",
+                          Condition == "5" ~ "WLSKO_Chir_Mat",
+                          Condition == "6" ~ "WLSKO_Py60_Mat",
+                          Condition == "7" ~ "control_Chir_Mat",
+                          Condition == "8" ~ "control_DMSO_Mat",
+                          Condition == "9" ~ "WLSKO_DMSO_Mat",
+                          Condition == "10" ~ "control_Py60_Mat"
+
+```{r}
+
+seurat_obj_annotated <- readRDS( "seurat_obj_processed-final.rds")
+
+```
+
+
+                                                   ##### UMAP
+
+```{r}
+Idents(seurat_obj_annotated) <- "seurat_clusters"
+
+seurat_obj_annotated<-RunUMAP(seurat_obj_annotated, reduction = "pca", dims = 1:22, min.dist =0.4, spread = 0.6)
+
+plot1 <- UMAPPlot(seurat_obj_annotated, group.by = "Treatment", cols =met.brewer("Cross", n = 10) ,  pt.size = 0.5, order= T) & NoAxes()
+plot1
+
+plot2 <- UMAPPlot(seurat_obj_annotated, group.by = "dataset", cols =met.brewer("Johnson", n = 2) ,  pt.size = 0.3, order= T) & NoAxes()
+plot2
+
+plot3 <- UMAPPlot(seurat_obj_annotated, group.by = "Cell_line", cols = c( "#282626","#BFBFBF") ,  pt.size = 0.3, order= T) & NoAxes()
+plot3
+
+```
+
+                                  ## Annotate clusters
+
+```{r}
+
+Idents(seurat_obj_annotated) <- "seurat_clusters"
+
+# stash current cluster IDs
+seurat_obj_annotated[["cluster.ids"]] <- Idents(object = seurat_obj_annotated)
+
+# enumerate current cluster IDs and the labels for them
+cluster.ids <- c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,12,13,14,15,16,17,18)
+
+anno_class1 <- c("Telencephalic neurons", #  0
+            "Telencephalic progenitors",#  1
+            "Choroid Plexus", #F   2
+            "Telencephalic neurons", #    3
+            "Telencephalic progenitors",#   4
+            "Telencephalic neurons", # ventral    5
+            "Mid-hind neurons", #    6
+            "Telencephalic neurons",#    7
+            "Telencephalic progenitors",#ventral    8
+            "Telencephalic progenitors",#   Dorsal 9
+            "Telencephalic progenitors", #   10
+            "Choroid Plexus", #    11
+            "Retinal progenitors", #       12
+            "Mid-hind progenitors", #  13
+            "removed",        #   14
+            "Neural crest", #    ventral 15
+            "Mid-hind progenitors",   #    16
+            "Mid-hind progenitors", #17
+            "Choroid Plexus") # 18
+ 
+
+seurat_obj_annotated@meta.data[,'anno_class1'] <- plyr::mapvalues(x = seurat_obj_annotated@meta.data$cluster.ids, from = cluster.ids, to = anno_class1)
+
+seurat_obj_annotated$anno_class1 <- factor(seurat_obj_annotated$anno_class1, levels = c("Telencephalic progenitors","Telencephalic neurons","Retinal progenitors","Choroid Plexus","Mid-hind progenitors","Mid-hind neurons","Neural crest"))
+
+#color_anno = met.brewer("Cassatt2",9)
+color_anno = c("#049983","#054","#264653","#277891","#930770","#6B081F","#f4a261","#cc9933","#277781")
+
+
+classdimplot <- DimPlot(seurat_obj_annotated, reduction = "umap", pt.size = 0.5, label = F,order = F, group.by = 'anno_class1', cols = color_anno) & NoAxes()
+
+classdimplot
+
+```
+
+
+```{r}
+
+FeaturePlot_3 <-  FeaturePlot(seurat_obj_annotated, c( "WLS","LHX9","FOXG1","TTR"), ncol=2, pt.size = 1, cols = colorRampPalette(c("lightgrey","turquoise4","midnightblue"))(30), order=T)& NoAxes() &NoLegend()
+FeaturePlot_3
+
+```
+
+
+```{r}
+library(dittoSeq)
+barplot_conditions<-dittoBarPlot(
+  object = seurat_obj_annotated,
+  var = "anno_class1",
+  group.by = "Treatment",
+  color.panel = color_anno,
+  retain.factor.levels = T,
+  ylab = "Cluster proportion")
+barplot_conditions
+```                 
+                        
+                     
+```{r}
+#####
+dotplot <- function(exprmat,
+                    genes,
+                    cl,
+                    gene.reorder=TRUE,
+                    specified.order=NULL,
+                    cl.reorder.by.hc=T,
+                    max.diag=TRUE,
+                    emphasize_genes = NULL,
+                    emphasize_cl = NULL,
+                    colors=c("#d9d9d9", "#252525"),
+                    point.size.factor=3.5,
+                    plot.margin=NULL,
+                    plot.cex=0.5,
+                    col.space.factor=1,
+                    row.space.factor=1,
+                    verbose = F)
+
+
+
+##################################
+Idents(seurat_obj_annotated) <- "anno_class1"
+
+
+genes_2 <- c("SOX2","FOXG1","NKX2-1","DLX2","MAP2","LHX9","IRX3","HOXB2","SOX10","FOXD3","TWIST1","DCN","RAX","SIX6","PAX6","TTR","WLS","OTX2","LMX1A","ZIC1","MSX1")
+
+dotplot_1 <- dotplot(seurat_obj_annotated@assays$RNA@data[genes_2,], genes_2, seurat_obj_annotated$seurat_clusters)
+
+dotplot_1 <- DotPlot(object = seurat_obj_annotated, features = genes_2, cluster.idents = T, dot.scale = 6,dot.min = 0,scale.by = "radius", col.min = 0) + theme_classic()+ theme(axis.text.x = element_text(angle = 90))+scale_colour_gradient2(low="grey1", mid="grey100", high="midnightblue")+
+  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.2)
+dotplot_1
+
+```
+                     
+                        ######### differential abundance #####
+                        
+```{r}
+ freq <- table(seurat_obj_annotated$anno_class1, seurat_obj_annotated$Treatment)
+prop <- apply(freq,2,function(x) x/sum(x))
+
+layout(matrix(1:3,nrow=1)); par(mar=c(8,5,1,1))
+barplot(freq, col=color_anno,
+        border=NA, las=2, ylab="Frequency", cex.names = 0.8)
+barplot(prop, col=color_anno,
+        border=NA, las=2, ylab="Proportion", cex.names = 0.8)
+plot.new()
+
+legend("left", fill=color_anno, legend=rownames(freq), bty="n")       
+
+```
+
+```{r}
+freq_fisher <- function(Treatment, have_identity){
+  freq <- table(factor(have_identity, levels=c(TRUE,FALSE)),
+                Treatment)
+  test <- fisher.test(freq)
+  res <- setNames(c(test$estimate, test$p.value), c("oddsratio","pval_fisher"))
+  return(res)
+}
+
+anno_class1_enrichment <- data.frame(anno_class1 = levels(seurat_obj_annotated$anno_class1),
+  # loop and test every anno_class1
+  t(sapply(levels(seurat_obj_annotated$anno_class1), function(anno_class1)
+    freq_fisher(Treatment = factor(seurat_obj_annotated$Treatment, levels=c("control_Py60_Mat","WLSKO_Py60_Mat")),
+                have_identity = seurat_obj_annotated$anno_class1 == anno_class1)
+  )),
+  row.names=NULL)
+anno_class1_enrichment$padj_fisher <- p.adjust(anno_class1_enrichment$pval_fisher)
+
+anno_class1_enrichment
+
+
+```
+
+
+```{r}
+#############################       Volcano plot DE       ##############################
+Idents(seurat_obj_annotated) <- "Condition"
+
+cl_markers_control.WLS_KO_Chir <- FindMarkers(seurat_obj_annotated, ident.1 =c("7"), ident.2 = c("5"), only.pos = F)
+
+cl_markers_control.WLS_KO_Py60<- FindMarkers(seurat_obj_annotated, ident.1 =c("10"), ident.2 = c("6"), only.pos = F)
+
+
+library(EnhancedVolcano)
+
+volcano_1 <- EnhancedVolcano(cl_markers_control.WLS_KO_Chir,
+                             lab = rownames(cl_markers_control.WLS_KO_Chir), 
+                             #selectLab = rownames(cl_markers_Ctrl.Py60),
+                           #selectLab =
+                            # c("WLS","FOXG1","EMX2","SIX3","SIX6","WNT4","WNT2B","FGF17","PAX3","PAX7","OTX2","EN2","IRX3","IRX2","CYP26A1","TFAP2A","HOXB2","GBX2","HAPLN1","PRTG","FOXH1","HESX1","SOX21","SFRP2","SOX10","FOXD3","POU5F1","SOX2","GPC3","COL4A1","NRG1","LHX2","HAPLN3","FAT1","IGFBP2","FGF8","FEZF1","FEZF2","DLK1","FZD5","ZIC2","PRTG","BMP4","BMP7","HYAL2","POU4F1","RSPO3","WNT5A","FJX1","FZD8"),
+                        c("WLS","FOXG1","SIX3","WNT4","WNT2B","FGF17","PAX3","PAX7","OTX2","EN2","IRX3","IRX2","CYP26A1","TFAP2A","HOXB2","GBX2","HAPLN1","PRTG","FOXH1","HESX1","SOX21","SFRP2","SOX10","FOXD3","POU5F1","SOX2","SOX4","GPC3","COL4A1","NRG1","LHX2","HAPLN3","FAT1","IGFBP2","FGF8","FEZF1","FEZF2","DLK1","FZD5","ZIC2","PRTG","BMP4","BMP7","HYAL2","POU4F1","RSPO3","RSPO2","PCP4","GJA1","WNT5A", "LMX1B","LMX1A","TTR","SHH","EN1","WNT5A","MSX2","CCN1","SOX4","MARCKS","STMN2"),
+                             x = 'avg_log2FC',
+                             y = 'p_val',
+                             title = 'control WLS_KO Chir',
+                             pCutoff = 10e-3,
+                             pCutoffCol = "p_val_adj",
+                             FCcutoff = 0.5,
+                             xlim = c(-3, 3),
+                             pointSize = 3,
+                             col=c("maroon3","purple4","grey60","black"),
+                             drawConnectors = T)+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"))+ theme(text = element_text(size = 8))    
+
+volcano_1
+
+ggsave( "volcano_cl_markers_control_WLS_KO_Chir.pdf",volcano_1,width=40, height=25, units="cm", dpi = 300 )
+
+
+```
+
+               
+
+  

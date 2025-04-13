@@ -18,7 +18,7 @@ library(patchwork)
 
 ```{r}
 
-setwd("~/polybox/Jain_Gut_et_al_2023/5.Control_YAP_Day16_scRNAseq/")
+setwd("~/polybox/Jain_Gut_et_al_2023/scRNAseq_analysis_data/5.Control_YAP_Day16_scRNAseq/")
 
 Day16_Control_YAP1 <- readRDS( "Day16_Control_YAP1.rds")
 
@@ -91,6 +91,7 @@ table (Day16_Control_YAP1$Treatment, Day16_Control_YAP1$Condition)
 
                                     
               ###################### Control and Py-60 (YAP1 activator) ###################
+              
 ```{r}
 
 counts <- GetAssayData(Day16_Control_YAP1, assay = "RNA")
@@ -106,10 +107,9 @@ Day16_Control_YAP1 <- FindNeighbors(Day16_Control_YAP1, reduction = "pca", dims 
 
 Day16_Control_YAP1<-RunUMAP(Day16_Control_YAP1, reduction = "pca", dims = 1:15)
 
+
 plot1 <- UMAPPlot(Day16_Control_YAP1, cols = met.brewer("Johnson", n = 11), pt.size = 1) &NoAxes()
 plot1
-
-
 
 plot2 <- UMAPPlot(Day16_Control_YAP1, group.by = "Treatment", cols =met.brewer("Java", n = 2) ,  pt.size = 1.2, order= T) & NoAxes()
 plot2
@@ -146,7 +146,6 @@ seurat_Day16_Control_YAP1 <- RunUMAP(seurat_Day16_Control_YAP1, reduction="css",
 plot1 <- UMAPPlot(seurat_Day16_Control_YAP1,group.by = "Treatment", pt.size = 1, cols = c("grey","grey20")) &NoAxes()
 plot1
 
-ggsave("UMAP_CSS_seurat_Day16_Control_YAP1.pdf", plot1, width=5,height=5)
 
 plot2 <- UMAPPlot(seurat_Day16_Control_YAP1, label = T)
 plot2
@@ -154,15 +153,22 @@ plot2
 plot3 <- plot1+plot2
 plot3
 
-ggsave("UMAP_CSS_seurat_Day16_Control_YAP1.jpeg", plot3, width=15,height=5)
 
 ```
 
+```{r}
+
+saveRDS(Day16_Control_YAP1, "Day16_Control_YAP1_processed.rds")
+
+```
+        
 
     ###################################### Feature plots ##################################
 ```{r}
 
-FeaturePlot_1 <-  FeaturePlot(seurat_Day16_Control_YAP1, c( "WLS","GBX2","STMN2","RSPO3","SOX10","PAX3","LHX9","IRX3","FOXD3","TFAP2B","NR2F1","LMO4","PAX7","SIX1","WNT4","FEZF2","WNT2B","FOXG1","SIX3","HESX1","FOXH1"),  pt.size = 0.2, cols = c("lightgrey",colorRampPalette(c("skyblue","turquoise4" ,"midnightblue"))(50)), order=T)& NoAxes() &NoLegend()
+FeaturePlot_1 <-  FeaturePlot(seurat_Day16_Control_YAP1, c( "WLS","GBX2","STMN2","SOX10","PAX3","PAX7","SIX3","HESX1"),  pt.size = 0.2, cols = c("lightgrey",colorRampPalette(c("skyblue","turquoise4" ,"midnightblue"))(50)), order=T, ncol = 8)& NoAxes() &NoLegend()
+
+FeaturePlot_1
 
 ggsave("FeaturePlot_seurat_Day16_Control_YAP1_1.jpeg", FeaturePlot_1)
 
@@ -233,50 +239,7 @@ barplot_conditions
 ggsave(filename = "barplot_HB4_seurat_Day16_Control_YAP1_1.png", plot = barplot_conditions, device = "png", width =10, height = 7)
 ```
 
-            #################################### Dotplot ##############################################
-
-
-```{r}
-Idents(seurat_Day16_Control_YAP1) <- "anno_class1"
-
-##### DOTPlot ####
-dotplot <- function(exprmat,
-                    genes,
-                    cl,
-                    gene.reorder=TRUE,
-                    specified.order=NULL,
-                    cl.reorder.by.hc=TRUE,
-                    max.diag=TRUE,
-                    emphasize_genes = NULL,
-                    emphasize_cl = NULL,
-                    colors=c("#d9d9d9", "#252525"),
-                    point.size.factor=5,
-                    plot.margin=NULL,
-                    plot.cex=1.2,
-                    col.space.factor=1,
-                    row.space.factor=1,
-                    verbose = F)
-
-
-
-genes_2 <- c("POU5F1","SOX2","NES","VIM","MAP2","STMN2","HESX1","FOXH1","EPCAM","ZIC2","TCF7L2","OTX2","SIX3","PRTG","WLS","SFRP2", "PAX3","PAX7","IRX3","TFAP2A","TFAP2B" ,"LMX1B","POU4F1","SOX10","GBX2","ZIC1","PRPH","SNAI1" )
-
-
-
-
-dotplot_1 <- dotplot(seurat_Day16_Control_YAP1@assays$RNA@data[genes_2,], genes_2, seurat_Day16_Control_YAP1$seurat_clusters)
-
-dotplot_1 <- DotPlot(object = seurat_Day16_Control_YAP1, features = genes_2, cluster.idents = T, dot.scale = 8,dot.min = 0,scale.by = "radius") + theme_classic()+ theme(axis.text.x = element_text(angle = 90))+
-scale_colour_gradient2(low="grey1", mid="grey100", high="midnightblue")+
-  geom_point(aes(size=pct.exp), shape = 21, colour="black", stroke=0.2)
-
-dotplot_1
-
-ggsave("Dotplot_seurat_Day16_Control_YAP1_annotated_1.pdf", dotplot_1, width=25 ,height=9, unit = "cm")
-
-
-dev.off()
-```
+          
 
 
 ```{r}
@@ -306,17 +269,11 @@ panel.background = element_blank(), axis.line = element_line(colour = "black"))+
 
 volcano_1
 
-ggsave( "volcano_cl_markers_Ctrl.Py60.pdf",volcano_1,width=20, height=20, units="cm", dpi = 300 )
-
 write.csv(cl_markers_Ctrl.Py60, "DE_genes_Ctrl_Vs_Py60.csv")
 
 ```
 
 
-```{r}
-saveRDS(Day16_Control_YAP1, "Day16_Control_YAP1.rds")
-
-```
-                                                         
+                                                 
 
 

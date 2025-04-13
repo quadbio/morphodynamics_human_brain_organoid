@@ -15,11 +15,7 @@ library(MetBrewer)
 ```
 
 
-
-
 ```{r}
-
-setwd("~/polybox/Jain_Gut_et_al_2023/Timecourse")
 
 Timecourse <- readRDS("Timecourse.rds")
 
@@ -27,20 +23,7 @@ table(Timecourse$dataset)
 
 ```
 
-```{r}
-Idents(Timecourse) <- "dataset"
-
-# Visualize QC metrics as a violin plot
-QCmetrics <- VlnPlot (Timecourse, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size = 0)
-QCmetrics
-
-VlnPlot (Timecourse, features = "percent.mt", y.max=11)
-VlnPlot (Timecourse, features = "nCount_RNA", y.max=40000)
-VlnPlot (Timecourse, features = "nFeature_RNA", y.max=7000)
-
-```
-
-Plot UMAP with cluster annotation
+                                    ##Plot UMAP with clusters
 
 ```{r}
 # Change idents to cluster annotation
@@ -88,14 +71,12 @@ dotplot_1 <- DotPlot(object = Timecourse, features = genes_2, cluster.idents = T
 
 dotplot_1
 
-ggsave("Dotplot_Timecourse.jpeg", dotplot_1, width=9,height=5)
-
 dev.off()
 ```
             
             
 
-#### New cluster ids ####
+                                  #### New cluster ids ####
 ```{r}
 
 Idents(Timecourse) <- "seurat_clusters"
@@ -132,11 +113,6 @@ color_anno = c("#ff6e1e","#e6c262","#c48e2c","#7fb59e","#049983","#016260","#264
 
 classdimplot <- DimPlot(Timecourse, reduction = "umap", pt.size = 0.8, label = F,order = T, group.by = 'class3', cols = color_anno) & NoAxes()
 classdimplot
-
-ggsave(filename = "annotated_Timecourse_1.pdf", plot = classdimplot, device = "pdf", width =10, height = 7)
-
-ggsave(filename = "annotated_Timecourse_1.png", plot = classdimplot, device = "png", width =10, height = 7)
-
 ```
 
               
@@ -162,9 +138,6 @@ barplot_conditions<-dittoBarPlot(
 
 barplot_conditions
 
-ggsave(filename = "barplot_Timecourse_1.pdf", plot = barplot_conditions, device = "pdf", width =10, height = 7)
-
-
 ```
 
                                     #### Heatmap annotations ######
@@ -182,47 +155,17 @@ plot <- heatmap + scale_fill_gradientn(colors=c("grey99",colorRampPalette(c("gre
 
 plot
 
-ggsave("Heatmap_genes_class3_1.pdf", plot, width=6,height=4)
-ggsave("Heatmap_genes_class3_1.png", plot, width=6,height=4)
-
 ```
 
-                                  ################ Heatmap averaged #####
-```{r}
-                      ###################### without dendogram ##############
-avg_expre_seu1 <- AverageExpression(Timecourse, features = genes2, return.seurat = T)
-heatmap <- DoHeatmap(object = avg_expre_seu1, features = genes2, draw.lines = F, size =3,disp.min = 0, group.bar =T, group.colors = color_anno, lines.width	= 30, label =F)
-plot <- heatmap + scale_fill_gradientn(colors=c("grey99",colorRampPalette(c("grey99","grey50" ,"black"))(30)))
-plot
-
-ggsave("Heatmap_Timecourse_anno.pdf", plot, width=6,height=10)
-
-```
 
 ```{r}
-### Feature Plots ##########
+                        ### Feature Plots ##########
 
 
-FeaturePlot_regions <-  FeaturePlot(Timecourse, c("TAL2","NRG1","OTX2","FOXG1","FEZF1","RSPO3","SIX6","SFRP2"), ncol=8, pt.size = 0.3, cols = c("lightgrey",colorRampPalette(c("lightgrey","midnightblue"))(30)), order=T)
+FeaturePlot_regions <-  FeaturePlot(Timecourse, c("SOX2","NRG1","OTX2","FOXG1","FEZF1","RSPO3","SIX6","SFRP2"), ncol=8, pt.size = 0.3, cols = c("lightgrey",colorRampPalette(c("lightgrey","skyblue","midnightblue"))(30)), order=T) & NoAxes() & NoLegend()
 
 FeaturePlot_regions
-ggsave("Featureplot_Timecourse-1.png", FeaturePlot_regions,device = "png",  width=20,height=2)
-
-
 ```
-
-
-
-```{r}
-
-setwd("~/Documents/10x/HB4_timecourse/Integration_all_days_final/Analysis_14-06-2023")
-
-saveRDS(Timecourse, "Timecourse.rds")
-
-Timecourse <- readRDS("Timecourse.rds")
-```
-
-
 
 
 
