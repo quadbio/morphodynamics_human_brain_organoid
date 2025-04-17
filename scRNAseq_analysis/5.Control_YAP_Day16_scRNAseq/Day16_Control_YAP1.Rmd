@@ -14,23 +14,9 @@ library(patchwork)
 ```
 
 
-
-
-```{r}
-
-Day16_Control_YAP1 <- readRDS(file = "Seurat_YAP_24.rds")
-```
-            
-            
-```{r}
-
-Day16_Control_YAP1 <- readRDS( "Day16_Control_YAP1.rds")
-
-```
-     
      
 ```{r}
-setwd("/Users/jainak/Desktop/processed_scRNAseq")
+
 Day16_Control_YAP1 <- readRDS("Day16_Control_YAP1_processed.rds")
 
 ```       

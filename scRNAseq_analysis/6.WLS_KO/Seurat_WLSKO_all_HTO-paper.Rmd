@@ -16,9 +16,7 @@ library(dplyr)
 
                                     #### pre-processing steps
 
-          #Seurat <- SCTransform(Seurat, variable.features.n = 1000)
-          #VariableFeaturePlot(Seurat, selection.method = "sct", assay = "SCT")
-
+       
           #Seurat <- NormalizeData (Seurat, normalization.method = "LogNormalize", scale.factor = 10000)
 
           # Select the top 1000 most variable features
@@ -46,7 +44,6 @@ library(dplyr)
                           Condition == "10" ~ "control_Py60_Mat"
 
 ```{r}
-setwd("/Users/jainak/Desktop/processed_scRNAseq")
 seurat_obj_annotated <- readRDS( "seurat_obj_processed_WLS_KO.rds")
 
 ```

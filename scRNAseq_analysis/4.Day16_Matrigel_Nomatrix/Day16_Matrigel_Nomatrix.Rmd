@@ -15,10 +15,7 @@ library(patchwork)
 
  Day16_Matrigel_Nomatrix
 ```{r}
-
-setwd("~/polybox/Jain_Gut_et_al_2023/scRNAseq_analysis_data//4.Day16_Matrigel_Nomatrix/")
-
-                                                          
+                                                      
 Day16_Matrigel_Nomatrix<- readRDS("Day16_Matrigel_Nomatrix.rds")
 
 ```
