@@ -75,8 +75,6 @@ color_anno = c("#049983","#264653","#EFC159","#cc9933","#ee6a50","#f4a261","#a3b
 classdimplot <- DimPlot(seurat_Day13_matrix, reduction = "umap", pt.size = 0.5, label = F,order = F, group.by = 'anno_class1', cols = color_anno) & NoAxes()
 classdimplot
 
-ggsave(filename = "annotated_HB4_seurat_Day13_matrix_1.png", plot = classdimplot, device = "png", width =9, height = 5)
-
 ```
 
 #####   stacked plot

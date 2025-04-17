@@ -46,8 +46,8 @@ library(dplyr)
                           Condition == "10" ~ "control_Py60_Mat"
 
 ```{r}
-
-seurat_obj_annotated <- readRDS( "seurat_obj_processed-final.rds")
+setwd("/Users/jainak/Desktop/processed_scRNAseq")
+seurat_obj_annotated <- readRDS( "seurat_obj_processed_WLS_KO.rds")
 
 ```
 

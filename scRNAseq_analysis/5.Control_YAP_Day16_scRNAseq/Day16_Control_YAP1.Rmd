@@ -13,83 +13,28 @@ library(tidyr)
 library(patchwork)
 ```
 
- 
+
 
 
 ```{r}
 
-setwd("~/polybox/Jain_Gut_et_al_2023/scRNAseq_analysis_data/5.Control_YAP_Day16_scRNAseq/")
+Day16_Control_YAP1 <- readRDS(file = "Seurat_YAP_24.rds")
+```
+            
+            
+```{r}
 
 Day16_Control_YAP1 <- readRDS( "Day16_Control_YAP1.rds")
 
 ```
-
-
+     
+     
 ```{r}
-library(tibble)
+setwd("/Users/jainak/Desktop/processed_scRNAseq")
+Day16_Control_YAP1 <- readRDS("Day16_Control_YAP1_processed.rds")
 
-# See the assigned identity for each level of classification
-Day16_Control_YAP1@meta.data %>% 
-    select (HTO_classification, hash.ID)
-
-# Check out the different levels of hash.ID to re-do the assignment of identities
-table (Day16_Control_YAP1@meta.data$hash.ID)
-
-# Create a new tibble from the metadata of the integrated object that will contain a mutated column with the new "condition" annotations
-new.metadata <- as.tibble (Day16_Control_YAP1@meta.data) %>% 
-  mutate (Condition = as.character (case_when (hash.ID == "Doublet" ~ "Doublet",
-                                               hash.ID == "HTO2" ~ "2",
-                                               hash.ID == "HTO4" ~ "1")))
-                                               
-# Checking the right correspondence
-table (new.metadata$hash.ID, new.metadata$Condition)
-
-# Assign the "condition" column from the dataframe to the newly created "Condition" column in the integrated object - "Condition" appended as a character
-Day16_Control_YAP1@meta.data$Condition <- new.metadata$Condition
-
-# Check that the addition of the column was done correctly
-Day16_Control_YAP1@meta.data %>% 
-    select (HTO_classification.global, HTO_classification, hash.ID, Condition)
-
-# Reorganize "Condition" levels
-plot_order <- c ("Doublet", "1","2")
-Day16_Control_YAP1@meta.data$Condition <- factor (x = Day16_Control_YAP1@meta.data$Condition, levels = plot_order)
-
-# Check that we have the right order
-levels (Day16_Control_YAP1$Condition)
-
-```
-
-```{r}
-
-# Create a new tibble from the metadata of the integrated object that will contain a mutated column with the new "condition" annotations
-new.metadata <- as.tibble (Day16_Control_YAP1@meta.data) %>% 
-  mutate (Treatment = as.character (case_when(Condition == "Doublet" ~ "Doublet",
-                                              Condition == "1" ~ "Mat_control",
-                                              Condition == "2" ~ "Py-60 Mat")))
-# Checking the right correspondence
-table (new.metadata$Condition, new.metadata$Treatment)
-
-# Assign the "Treatment" column from the dataframe to the newly created "Treatment" column in the integrated object - appended as a character
-Day16_Control_YAP1@meta.data$Treatment <- new.metadata$Treatment
-
-# Check that the addition of the column was done correctly
-Day16_Control_YAP1@meta.data %>% 
-    select (HTO_classification.global, HTO_classification, hash.ID, Condition, Treatment)
-
-# Reorganize "Treatment" levels
-plot_order <- c ("Doublet", "Mat_control","Py-60 Mat")
-
-Day16_Control_YAP1@meta.data$Treatment <- factor (x = Day16_Control_YAP1@meta.data$Treatment, levels = plot_order)
-
-# Check that we have the right order
-levels (Day16_Control_YAP1$Treatment)
-
-table (Day16_Control_YAP1$Treatment, Day16_Control_YAP1$Condition)
-
-```
-
-                                    
+```       
+              
               ###################### Control and Py-60 (YAP1 activator) ###################
               
 ```{r}
@@ -106,14 +51,11 @@ Day16_Control_YAP1 <- FindNeighbors(Day16_Control_YAP1, reduction = "pca", dims 
 
 
 Day16_Control_YAP1<-RunUMAP(Day16_Control_YAP1, reduction = "pca", dims = 1:15)
-
-
 plot1 <- UMAPPlot(Day16_Control_YAP1, cols = met.brewer("Johnson", n = 11), pt.size = 1) &NoAxes()
 plot1
 
 plot2 <- UMAPPlot(Day16_Control_YAP1, group.by = "Treatment", cols =met.brewer("Java", n = 2) ,  pt.size = 1.2, order= T) & NoAxes()
 plot2
-
 
 plot3 <- plot1+plot2
 plot3
@@ -123,8 +65,6 @@ plot4 <- UMAPPlot(Day16_Control_YAP1, pt.size = 1.2, order= T, group.by = "Phase
 plot4
 
 ```
-
-
              
                ######################### Integration CSS ######################
     
@@ -156,11 +96,6 @@ plot3
 
 ```
 
-```{r}
-
-saveRDS(Day16_Control_YAP1, "Day16_Control_YAP1_processed.rds")
-
-```
         
 
     ###################################### Feature plots ##################################
@@ -169,8 +104,6 @@ saveRDS(Day16_Control_YAP1, "Day16_Control_YAP1_processed.rds")
 FeaturePlot_1 <-  FeaturePlot(seurat_Day16_Control_YAP1, c( "WLS","GBX2","STMN2","SOX10","PAX3","PAX7","SIX3","HESX1"),  pt.size = 0.2, cols = c("lightgrey",colorRampPalette(c("skyblue","turquoise4" ,"midnightblue"))(50)), order=T, ncol = 8)& NoAxes() &NoLegend()
 
 FeaturePlot_1
-
-ggsave("FeaturePlot_seurat_Day16_Control_YAP1_1.jpeg", FeaturePlot_1)
 
 ```
 
