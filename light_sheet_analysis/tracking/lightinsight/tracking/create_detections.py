@@ -5,12 +5,12 @@ from skimage import morphology
 
 
 def create_detections(
-    time_point, input_movie, channel_group, cumsum_max, label, chunk_size
+    time_point, input_movie, channel_group, cumsum_max, label, chunk_size, min_size=1500
 ):
     mask = input_movie[str(time_point)]["labels"][label]["0"][:].astype(np.uint32)
     detections = mask + cumsum_max[time_point]
     detections = detections * (mask > 0)
-    detections = morphology.remove_small_objects(detections, 1500)
+    detections = morphology.remove_small_objects(detections, min_size)
     time_group = channel_group.require_group(str(time_point))
     write_labels(
         labels=detections,

@@ -9,6 +9,33 @@ from lightinsight.utils.utils import pad_to_shape
 
 
 def add_nodes(t, min_vol, anisotropy, input_movie, detection_name, zarr_level="0"):
+    """Create graph nodes from labeled regions at a specific time point.
+
+    This function extracts regions from a labeled image at time t and adds them as nodes
+    to a directed graph. Each node represents a detected object/cell with a feature based on volume.
+
+    Parameters
+    ----------
+    t : int
+        Time point index in the movie
+    min_vol : float
+        Minimum volume threshold used to calculate volume based feature score.
+    anisotropy : float
+        Z-axis anisotropy factor for correcting z-coordinate scaling.
+    input_movie : zarr.Group or similar
+        Hierarchical data structure containing labeled images organized by time and label type.
+    detection_name : str
+        Name of the detection/label set to use from the input movie.
+    zarr_level : str, optional
+        Resolution level in the zarr pyramid to use (default is "0" for full resolution)
+    Returns
+    -------
+    nx.DiGraph
+        Directed graph containing nodes for all regions detected at time t.
+        Each node has attributes: time, show (label), feature (volume-based),
+        draw_position, z, y, x coordinates
+    """
+
     graph = nx.DiGraph()
     d = input_movie[str(t)]["labels"][detection_name][zarr_level][:]
     regions = skimage.measure.regionprops(d)
@@ -16,7 +43,7 @@ def add_nodes(t, min_vol, anisotropy, input_movie, detection_name, zarr_level="0
     for i, r in enumerate(regions):
         draw_pos = int(d.shape[0] - r.centroid[0])
         if draw_pos in positions:
-            draw_pos += 3  # To avoid overlapping nodes
+            draw_pos += 3
         positions.append(draw_pos)
         graph.add_node(
             r.label - 1,
@@ -44,6 +71,44 @@ def extract_edges(
     edge_metrics=["iou_label", "distance", "volume"],
     zarr_level="0",
 ):
+    """Extract candidate edges between regions in consecutive time frames.
+
+    This function identifies potential connections between objects/cells between two time points.
+    It calculates similarity metrics (volume, iou, max_intersect, distance...) and creates
+    edges where objects are within the maximum distance threshold. If multiple edge_metrics
+    are supplied, it will calculate an average of these metrics.
+    The function only creates edges where the combined metric score is > 0.
+
+    Parameters
+    ----------
+    t : int
+        Starting time point (edges will be created between t and t+1)
+    input_movie : zarr.Group or similar
+        Hierarchical data structure containing labeled images
+    anisotropy : float
+        Z-axis anisotropy factor for distance calculations
+    max_distance : float
+        Maximum allowed distance between centroids for edge creation
+    detection_name : str
+        Name of the detection/label set to use
+    edge_metrics : list of str, optional
+        Metrics to calculate for edge features. Options include:
+        - "iou_label": Intersection over Union of label masks
+        - "iou": IoU of full segmentation masks
+        - "max_intersect": Maximum intersection ratio
+        - "distance": Normalized distance feature
+        - "volume": Volume similarity feature
+    zarr_level : str, optional
+        Resolution level in the zarr pyramid (default is "0")
+
+    Returns
+    -------
+    list of lists
+        Each inner list contains [source_node_id, target_node_id, combined_score]
+        where the combined score is the average of all requested metrics
+
+    """
+
     d0 = input_movie[str(t)]["labels"][detection_name][zarr_level][:]
     d1 = input_movie[str(t + 1)]["labels"][detection_name][zarr_level][:]
     region_props_1 = skimage.measure.regionprops_table(
@@ -168,13 +233,36 @@ def build_graph(
 ):
     """Build a candidate graph from a list of detections.
 
-     Args:
-        detections: list of 3D arrays, each array is a label image.
-            Labels are expected to be consecutive integers starting from 1, background is 0.
-        max distance: maximum distance between centroids of two detections to place a candidate edge.
-        drift: (y, x) tuple for drift correction in euclidian distance feature.
-    Returns:
-        G: motile.TrackGraph containing the candidate graph.
+    This function constructs a complete tracking graph by creating nodes
+    for all time points and edges between consecutive frames. It uses parallel processing
+    to efficiently handle large datasets.
+
+    Parameters
+    ----------
+    max_distance : float
+        Maximum distance between centroids to place a candidate edge
+    input_movie : zarr.Group or similar
+        Hierarchical data structure containing labeled images for all time points
+    detection_name : str
+        Name of the detection/label set to use
+    time_points : list of int
+        List of time point indices to process
+    min_vol : float, optional
+        Minimum volume threshold for node features (default is 100)
+    anisotropy : float, optional
+        Z-axis anisotropy factor for distance calculations (default is 1)
+    n_jobs : int, optional
+        Number of parallel jobs to use (default is 4)
+    edge_metrics : list of str, optional
+        Metrics to calculate for edge features (default is ["iou", "distance", "volume"])
+    zarr_level : str, optional
+        Resolution level in the zarr pyramid (default is "0")
+
+    Returns
+    -------
+    motile.TrackGraph
+        A motile TrackGraph containing the candidate graph with nodes and edges.
+        The graph uses "time" as the frame attribute for temporal organization.
     """
 
     print("Building candidate graph")
