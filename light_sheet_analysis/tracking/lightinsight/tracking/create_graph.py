@@ -137,8 +137,8 @@ def extract_edges(
                 row_0 = region_props_1.iloc[i]
                 row_1 = region_props_2.iloc[j]
                 distance_feature = 1 - (dist / max_distance)
-                _a1 = row_0["area"]
-                _a0 = row_1["area"]
+                _a0 = row_0["area"]
+                _a1 = row_1["area"]
                 if _a0 > _a1:
                     area_feature = np.round(
                         _a1 / _a0,

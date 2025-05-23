@@ -1,0 +1,30 @@
+name: light_insight
+channels:
+  - conda-forge
+  - funkelab
+  - pytorch
+  - defaults
+  - gurobi
+dependencies:
+  - python=3.9
+  - hdbscan
+  - leidenalg
+  - napari
+  - numba
+  - numpy
+  - pyopencl
+  - pyqt>=5.12.3,!=5.15.0
+  - python-igraph
+  - pytables
+  - pip>=22.0
+  - ilpy=0.4.0
+  - gurobi=10.0.3
+  - scikit-image==0.22.0
+  - scikit-learn==1.4.2
+  - scipy==1.13.0
+  - numpy==1.25.0
+  - ome-zarr==0.8.3
+  - pip:
+    - morphometrics==0.0.6
+    - trimesh[easy]==3.21.6
+    - motile==0.2.0

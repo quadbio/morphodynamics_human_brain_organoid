@@ -1,5 +1,6 @@
-/4i_processing/build/
-/4i_processing/phenoscapes.egg-info/
+/4i_analysis/4i_processing/build/
+/4i_analysis/4i_processing/phenoscapes.egg-info/
 .idea
 .DS_Store
-/4i_retina_example/
+/light_sheet_analysis/tracking/example/
+**/.ipynb_checkpoints/
