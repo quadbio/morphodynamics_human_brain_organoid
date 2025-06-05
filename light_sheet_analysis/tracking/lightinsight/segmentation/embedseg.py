@@ -1,11 +1,11 @@
-'''
+"""
 This work is based on EmbedSeg by Manan Lalit et al.
 Source: https://github.com/juglab/EmbedSeg/blob/main/EmbedSeg/test.py
 Original License: CC BY-NC 4.0
 
 Modifications by Gilles Gut are also licensed under CC BY-NC 4.0
 Changes include: Reworked begin_evaluating function to use numpy arrays as an input and then also return numpy arrays.
-'''
+"""
 
 import os
 

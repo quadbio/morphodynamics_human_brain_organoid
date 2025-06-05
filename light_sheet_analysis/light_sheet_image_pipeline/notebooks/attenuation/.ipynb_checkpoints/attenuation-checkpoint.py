@@ -1,4 +1,4 @@
-'''
+"""
 Attenuation filter function extracted from DEXP package.
 
 Originally from the projection function of the great DEXP package:
@@ -7,7 +7,7 @@ https://github.com/royerlab/dexp/blob/8e8399f5d0d8f1e1ae0ddfa6cb6011921929ae0b/d
 Copyright (c) 2021, DEXP
 License: BSD 3-Clause (see LICENSE_dexp.txt)
 Modifications: Extracted as standalone function, adapted for modular use
-'''
+"""
 
 import cupy as cp
 from cupyx.scipy.ndimage import gaussian_filter, rotate
@@ -18,9 +18,9 @@ def attenuation_filter(
 ):
     """
     Apply attenuation filtering to image data.
-    
+
     Extracted from DEXP's projection function for standalone use.
-    
+
     Parameters:
     -----------
     image : cupy.ndarray
@@ -31,7 +31,7 @@ def attenuation_filter(
         Attenuation coefficient
     attenuation_filtering : float
         Gaussian filter sigma for attenuation preprocessing
-        
+
     Returns:
     --------
     cupy.ndarray
