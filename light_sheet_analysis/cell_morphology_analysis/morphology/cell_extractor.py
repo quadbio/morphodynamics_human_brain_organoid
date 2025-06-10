@@ -23,10 +23,17 @@ from skimage.transform import downscale_local_mean, rescale, resize
 from tqdm import tqdm
 
 
-def read_extract(t):
+def extract_masks(mask, from_values, to_values):
+    array = mask.astype(np.float32)
+    sort_idx = np.argsort(from_values)
+    idx = np.searchsorted(from_values, array, sorter=sort_idx)
+    return (to_values[sort_idx][idx]).astype(np.uint16)
+
+
+def read_extract(t, input_dir, all_files, morpho_dir, experiment_directory):
     stack = imread(f"{input_dir}/images/{all_files[t]}")
     mask = imread(f"{input_dir}/predictions/{all_files[t]}")
-    morpho_data = pd.read_csv(output_dir + all_files[t].replace(".tif", ".csv"))
+    morpho_data = pd.read_csv(morpho_dir + all_files[t].replace(".tif", ".csv"))
     # Get only masks which were measured
     from_values = np.arange(np.max(mask) + 1)
     to_values = np.zeros(from_values.shape)
