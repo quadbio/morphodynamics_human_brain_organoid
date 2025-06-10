@@ -114,10 +114,9 @@ def main(argv):
         input_movie=input_movie,
         detection_name=detection_name,
         min_vol=1000,
-        anisotropy=2 / (0.347 * 2),
+        anisotropy=2 / (0.347 * 2 ** (zarr_level + 1)),
         n_jobs=8,
         time_points=time_points_done,
-        # edge_metrics=["iou_label", "distance", "volume"],
         edge_metrics=["distance", "iou_label"],
         zarr_level=zarr_level,
     )
