@@ -1,25 +1,22 @@
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
-import skimage
-import yaml
-from matplotlib import pyplot as plt
-from phenoscapes.cli import load_default_config, process_sample
+import skimage.segmentation
 from phenoscapes.feature_extraction import extract_features
 from phenoscapes.morphometrics import run_extract_morphology_features
-from phenoscapes.sc import convert_to_h5ad, plot_summary
-from phenoscapes.segmentation import generate_label_overlay, run_cellpose
-from phenoscapes.utils import get_metadata
+from phenoscapes.sc import convert_to_h5ad
+from phenoscapes.segmentation import run_cellpose
 from skimage import io
 from skimage.measure import regionprops
 from tqdm import tqdm
 
 
-def run_comaprtement_analysis(sample, default_config, iou_threshold=0.2):
+def run_compartment_analysis(
+    sample, overall_config, dir_output, dir_bg_subtracted, df_stains, iou_threshold=0.2
+):
     dir_segmented_bcat = Path(dir_output, "segmented_bcat")
     dir_avg_nuclei = Path(dir_output, "avg_nuclei")
-    config = default_config
+    config = overall_config
     config["cellpose"]["segment_channel"] = 2
     config["cellpose"]["segment_cycle"] = 1
     config["cellpose"][
@@ -43,7 +40,7 @@ def run_comaprtement_analysis(sample, default_config, iou_threshold=0.2):
 
     dir_segmented_nuclei = Path(dir_output, "segmented_dapi")
 
-    config = default_config
+    config = overall_config
     config["cellpose"]["segment_channel"] = 0
     config["cellpose"]["segment_cycle"] = 0
     config["cellpose"]["diameter"] = 37.07
@@ -122,14 +119,14 @@ def run_comaprtement_analysis(sample, default_config, iou_threshold=0.2):
     # Save membrane_mask,ecm_mask,nuceli mask
     dir_segmented_cytoplasma = Path(dir_output, "segmented_cytoplasma")
     dir_segmented_ec_niche = Path(dir_output, "segmented_ecm_niche")
-    dir_segmented_nuclei = Path(dir_output, "segmented_cell_nuclei")
+    dir_segmented_nuclei_final = Path(dir_output, "segmented_cell_nuclei")
 
     dir_segmented_cytoplasma.mkdir(parents=True, exist_ok=True)
     dir_segmented_ec_niche.mkdir(parents=True, exist_ok=True)
-    dir_segmented_nuclei.mkdir(parents=True, exist_ok=True)
+    dir_segmented_nuclei_final.mkdir(parents=True, exist_ok=True)
 
     io.imsave(
-        Path(dir_segmented_nuclei, sample + ".tif"),
+        Path(dir_segmented_nuclei_final, sample + ".tif"),
         nuclei_mask_assigned.astype(np.uint16),
     )
     io.imsave(
@@ -144,7 +141,7 @@ def run_comaprtement_analysis(sample, default_config, iou_threshold=0.2):
     segmented_list = [
         dir_segmented_cytoplasma,
         dir_segmented_ec_niche,
-        dir_segmented_nuclei,
+        dir_segmented_nuclei_final,
     ]
     for dir_segmented in segmented_list:
 
@@ -175,7 +172,7 @@ def run_comaprtement_analysis(sample, default_config, iou_threshold=0.2):
         )
 
 
-def run_morpho_analysis(sample, default_config):
+def run_morpho_analysis(sample, config, dir_output):
     dir_segmented_bcat = Path(dir_output, "segmented_bcat")
     dir_speckle_masks = Path(dir_output, "speckle_masks")
     dir_feature_tables_morphometrics = Path(
