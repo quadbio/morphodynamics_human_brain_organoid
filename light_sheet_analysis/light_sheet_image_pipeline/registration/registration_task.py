@@ -9,19 +9,19 @@ from skimage.io import imread, imsave
 FLAGS = flags.FLAGS
 flags.DEFINE_string(
     "input_folder",
-    "/cluster/project/treutlein/DATA/imaging/viventis/test_pipeline/",
+    "",
     "Input folder with the TIFF stacks",
 )
 
 flags.DEFINE_string(
     "output_folder",
-    "/cluster/work/treutlein/DATA/imaging/viventis/test_pipeline/denoised/",
+    "",
     "Output folder",
 )
 
 flags.DEFINE_string(
     "config_file",
-    "/cluster/home/gutgi/light_sheet_image_pipeline/pipeline_config.yaml",
+    "",
     "configuration file to use",
 )
 

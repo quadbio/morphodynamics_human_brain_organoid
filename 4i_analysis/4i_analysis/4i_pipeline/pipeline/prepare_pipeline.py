@@ -48,7 +48,7 @@ flags.DEFINE_string("segment_channel", "", "Channel to segment")
 flags.DEFINE_string("segment_cycle", "", "Cycel to segment")
 flags.DEFINE_string("pannel", "", "Stain pannel")
 flags.DEFINE_string(
-    "cutter_size", "128", "Size of the area around the cookie cutter object to cut"
+    "cutter_size", "64", "Size of the area around the cookie cutter object mask to cut"
 )
 
 

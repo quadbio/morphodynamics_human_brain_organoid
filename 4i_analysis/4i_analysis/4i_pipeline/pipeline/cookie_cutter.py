@@ -24,7 +24,7 @@ def mask_cookie_cutter(
     config: dict = None,
 ):
 
-    """Creating an initial simple mask
+    """Creating an initial simple mask and returns it
 
     :param config:
     :param sigma:
@@ -38,10 +38,8 @@ def mask_cookie_cutter(
     :param channels: (list) channels to create mask from
     :param save: (bool) save created mask
     :param plot: (bool) create plot
-    :param save_plot: (bool) save plot
-    :param show_plot: (bool) return plot
 
-    :return: depending on input parameters the function saves the created mask and/or plots and/or shows the overview plot
+    :return: mask used for the cookie cutter
     """
 
     dir_images = Path(dir_input, sample)
